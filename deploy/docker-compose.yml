@@ -1,0 +1,89 @@
+version: '3.7'
+
+services:
+  backend:
+    build: ../backend
+    container_name: backend
+    volumes:
+      - ./logs:/var/log
+    ports:
+      - "8080:8080"
+    networks:
+      - monitoring
+    restart: always
+    depends_on:
+      - promtail
+      - prometheus
+      - loki
+      - grafana
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana-data:/var/lib/grafana
+    networks:
+      - monitoring
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-config.yml:/etc/loki/loki-config.yml
+    command: -config.file=/etc/loki/loki-config.yml
+    networks:
+      - monitoring
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    volumes:
+      - ./logs:/var/log
+      - ./promtail-config.yml:/etc/promtail/promtail-config.yml
+    command: -config.file=/etc/promtail/promtail-config.yml
+    depends_on:
+      - loki
+    networks:
+      - monitoring
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    volumes:
+      - ./otel-config.yml:/etc/otelcol/config.yml
+    command: [ "--config=/etc/otelcol/config.yml" ]
+    ports:
+      - "4318:4318"
+    depends_on:
+      - tempo
+    networks:
+      - monitoring
+
+  tempo:
+    image: grafana/tempo:latest
+    command: [ "-config.file=/etc/tempo.yml" ]
+    volumes:
+      - ./tempo.yml:/etc/tempo.yml
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+    networks:
+      - monitoring
+
+networks:
+  monitoring:
+    driver: bridge
