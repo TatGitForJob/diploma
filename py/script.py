@@ -2,13 +2,28 @@ import os
 import fitz  # PyMuPDF
 import shutil
 from openpyxl import Workbook
-from openpyxl.styles import Alignment
+from openpyxl.styles import Alignment, Font
 import time
 from openpyxl.drawing.image import Image as XLImage
 from PIL import Image
 import io
 import yadisk
 from PyPDF2 import PdfReader, PdfWriter
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
+executor = ThreadPoolExecutor()
+loop = asyncio.get_event_loop()
+upload_tasks = []
+crops = [
+    (25, 90,400,200),      # верхняя часть
+    (410,90,600 ,200),    # средняя часть # нижняя часть
+]
+colums_width=[20,54,20,20,20,28,10,10,70]
+pdfs_url="https://docs.yandex.ru/docs/view?url=ya-disk%3A%2F%2F%2Fdisk%2Foutput%2F34329_0%20(10).pdf&name=34329_0%20(10).pdf&uid=1130000065607622&nosw=1"
+
+async def async_save_to_yandex_disk(save_folder, file_path):
+    await loop.run_in_executor(executor, save_to_yandex_disk, save_folder, file_path)
 
 # Авторизация
 yandex = yadisk.YaDisk(token="y0__xDG74akqveAAhjblgMggf6o1xKS9mEBdAxviZ1aAoqtrPku2rA5qA")
@@ -29,7 +44,7 @@ def save_to_yandex_disk(save_folder, file_path):
     yandex.upload(file_path, f"{save_folder}/{filename}")
     print(f"Загружено: {filename}")
 
-def crop_image_by_pixels(pdf_path, crops):
+def crop_image_by_pixels(pdf_path):
     doc = fitz.open(pdf_path)
     page = doc[0]
     pix = page.get_pixmap(dpi=75)
@@ -60,54 +75,47 @@ def split_pdf_by_pages(input_pdf_path, output_folder, chunk_size=2):
     
     os.remove(input_pdf_path)
 
+def prepare_excel(ws):
+    headers = [
+        "Id работы", "Автор", "Фамилия", "Имя", "Кодовое слово",
+        "Результат", "Орф.\n ошибки", "Пункт.\n ошибки", "Скан работы"
+    ]
+    for col, text in enumerate(headers):
+        cell = ws.cell(row=1, column=col+1, value=text)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        ws.column_dimensions[cell.column_letter].width = colums_width[col]
+    ws.row_dimensions[1].height = 50
+
 def insert_images_to_excel(pdf_folder, output_excel):
     wb = Workbook()
     ws = wb.active
 
-    row = 1
-    for filename in os.listdir(pdf_folder):
+    prepare_excel(ws)
+
+    for row, filename in enumerate(os.listdir(pdf_folder),start=2):
         if not filename.lower().endswith(".pdf"):
             continue
-
         pdf_path = os.path.join(pdf_folder, filename)
-
-        save_to_yandex_disk("/output",pdf_path)
+        upload_tasks.append(async_save_to_yandex_disk("/output",pdf_path))
         print(f"Начало Обработки: {filename}")
-        # Укажи здесь crop'ы по пикселям (top, bottom)
-        crops = [
-            (40, 90,300,200),      # верхняя часть
-            (200,90,500 ,200),    # средняя часть # нижняя часть
-        ]
+        images = crop_image_by_pixels(pdf_path)
 
-        images = crop_image_by_pixels(pdf_path, crops)
-        max_height_px = 0  # Для определения максимальной высоты строки
-
-        col = 1
         cell = ws.cell(row=row, column=1, value=os.path.splitext(filename)[0])
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
-        for _, img_buf in enumerate(images, start=1):
-            if img_buf:
-                col += 1
-                img = XLImage(img_buf)
-                pil_img = Image.open(img_buf)
-                width_px, height_px = pil_img.size
+        for col, img_buf in enumerate(images, start=2):
+            if col == 3:
+                col=6
+            cell = ws.cell(row=row, column=col)
+            ws.add_image(XLImage(img_buf), cell.coordinate)
 
-                cell = ws.cell(row=row, column=col)
-                ws.add_image(img, cell.coordinate)
-
-                ws.column_dimensions[cell.column_letter].width = width_px / 7
-
-                if height_px > max_height_px:
-                    max_height_px = height_px
-
-        ws.row_dimensions[row].height = max_height_px * 0.75
+        ws.row_dimensions[row].height = 84
         row += 1
         print(f"Конец Обработки: {filename}")
 
     wb.save(output_excel)
     save_to_yandex_disk("/xlsx", output_excel)
-    os.remove(output_excel)
 
 
 # === Шаги обработки ===
@@ -129,6 +137,8 @@ split_pdf_by_pages(LOCAL_PDF_PATH, PDF_OUTPUT_FOLDER)
 
 # 3. Обрабатываем порезанные PDF-файлы
 insert_images_to_excel(PDF_OUTPUT_FOLDER, EXCEL_OUTPUT_PATH)
+
+loop.run_until_complete(asyncio.gather(*upload_tasks))
 
 end = time.time()
 print(f"⏱ Выполнено за {end - start:.2f} секунд")
