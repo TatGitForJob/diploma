@@ -3,3 +3,4 @@ pdfs
 xlsx
 out.xlsx
 py/__pycache__
+.env
