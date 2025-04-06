@@ -5,3 +5,4 @@ out.xlsx
 py/__pycache__
 .env
 py/Moscow*
+py/logs*

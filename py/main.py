@@ -41,11 +41,11 @@ def check_duplicates(sity, name):
     if not y.exists(pdf_folder):
         y.mkdir(pdf_folder)
     else:
-        print(f"Дубликат директории на диске: {pdf_folder}")
+        logging.error(f"Дубликат директории на диске: {pdf_folder}")
         return "", False
     xlsx_file = f"{sity}_xlsx/{name}.xlsx"
     if y.exists(xlsx_file):
-        print(f"Дубликат Excel-файла на диске: {xlsx_file}")
+        logging.error(f"Дубликат Excel-файла на диске: {xlsx_file}")
         return "", False
     return pdf_folder, True
 
@@ -73,9 +73,9 @@ def process_city(sity):
             filename = item["name"]
             name = os.path.splitext(filename)[0]
             if len(name) != 5:
-                print(f"Имя файла не длины 5: /{sity}/{name}.pdf")
+                logging.error(f"Имя файла не длины 5: /{sity}/{name}.pdf")
                 continue
-            print(f"Обработка файла: /{sity}/{name}.pdf")
+            logging.info(f"Обработка файла: /{sity}/{name}.pdf")
             pdf_folder, ok = check_duplicates(sity, name)
             if ok:
                 tasks.append((sity, name, pdf_folder, xlsx_folder))
@@ -92,14 +92,15 @@ def process_city(sity):
 def trigger_processing():
     data = request.get_json()
     sity = data.get("sity")
-    print(f"➡️ Запрос на обработку города: {sity}")
+    logging.info(f"➡️ Запрос на обработку города: {sity}")
     try:
         start = time.time()
         result = process_city(sity)
         duration = time.time() - start
+        logging.info("Успешный запрос процессинга")
         return jsonify({"status": result, "duration_sec": round(duration, 2)})
     except Exception as e:
-        print(f"Ошибка: {e}")
+        logging.error(f"Что-то пошло не так, error: {str(e)}")
         return jsonify({"status": "Что-то пошло не так", "error": str(e)}), 500
 
 if __name__ == "__main__":
