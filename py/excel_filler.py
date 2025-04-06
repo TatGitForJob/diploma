@@ -5,12 +5,6 @@ from openpyxl.utils import get_column_letter
 from PIL import Image
 
 # Конфигурация
-YANDEX_TOKEN = "y0__xDG74akqveAAhjblgMggf6o1xKS9mEBdAxviZ1aAoqtrPku2rA5qA"
-YANDEX_ID = "1130000065607622"
-REMOTE_PDF_PATH = "/input/34329.pdf"
-LOCAL_PDF_PATH = "../pdfs/34329.pdf"
-PDF_OUTPUT_FOLDER = "../pdfs"
-EXCEL_OUTPUT_PATH = "out.xlsx"
 CROPS = [(25, 90, 400, 200), (410, 90, 600, 200)]
 COLUMN_WIDTHS = [20, 54, 20, 20, 20, 28, 10, 10, 30]
 
@@ -24,9 +18,6 @@ def prepare_excel(ws):
         cell.alignment = Alignment(horizontal="center", vertical="center")
         ws.column_dimensions[get_column_letter(col)].width = COLUMN_WIDTHS[col-1]
     ws.row_dimensions[1].height = 50
-
-def natural_sort_key(filename):
-    return int(filename.split('_')[1].split('.')[0])
 
 def fill_text_cells(ws, row, filename):
     cell = ws.cell(row=row, column=1, value=os.path.splitext(filename)[0])
