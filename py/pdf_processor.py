@@ -26,8 +26,16 @@ def split_pdf_by_pages(input_pdf, out_folder, chunk_size=2):
             writer.write(f)
     os.remove(input_pdf)
 
-#def save_pdf_links(ws,pdf_files_path):
-    #print(ws,pdf_files_path)
+def save_pdf_links(ws,pdf_files_path):
+    for row in ws.iter_rows(min_row=2):
+        name = str(row[0].value).strip()+".pdf"
+        try:
+            meta = y.get_meta(f"{pdf_files_path}/{name}")
+            public_url = meta.public_url
+        except yadisk.exceptions.PathNotFoundError:
+            print(f"Файл не найден для ссылки {pdf_files_path}/{name}")
+            return
+        row[8].hyperlink = public_url
 
 def natural_sort_key(filename):
     return int(filename.split('_')[1].split('.')[0])
@@ -51,7 +59,7 @@ async def process_excel(pdfs_folder, excel_path):
         row += 1
     await asyncio.gather(*tasks)
 
-    #save_pdf_links(ws,"/output")
+    save_pdf_links(ws,pdfs_folder)
     wb.save(excel_path)
     save_to_yandex_disk(excel_path)
 

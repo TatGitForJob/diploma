@@ -5,7 +5,7 @@ from openpyxl.utils import get_column_letter
 from PIL import Image
 
 # Конфигурация
-CROPS = [(25, 90, 400, 200), (410, 90, 600, 200)]
+CROPS = [(25, 90, 400, 220), (410, 90, 600, 200)]
 COLUMN_WIDTHS = [20, 54, 20, 20, 20, 28, 10, 10, 30]
 
 
@@ -32,7 +32,7 @@ def fill_image_cells(ws, row, filepath):
     for col, img_buf in enumerate(images, start=2):
         col = 6 if col == 3 else col
         ws.add_image(XLImage(img_buf), ws.cell(row=row, column=col).coordinate)
-    ws.row_dimensions[row].height = 84
+    ws.row_dimensions[row].height = 89
 
 def crop_image_by_pixels(pdf_path):
     doc = fitz.open(pdf_path)

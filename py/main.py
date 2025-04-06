@@ -12,6 +12,7 @@ def makedirs(sity):
     xlsx_folder = f"{sity}_xlsx"
     if not y.exists(pdf_folder):
         y.mkdir(pdf_folder)
+        time.sleep(0.5)
     if not y.exists(xlsx_folder):
         y.mkdir(xlsx_folder)
     os.makedirs(xlsx_folder, exist_ok=True)
@@ -68,6 +69,9 @@ def main():
         if item["type"] == "file" and item["name"].lower().endswith(".pdf"):
             filename = item["name"]
             name = os.path.splitext(filename)[0]
+            if len(name) != 5:
+                print(f"Имя файла не длины 5: /{sity}/{name}.pdf")
+                continue
             print(f"Обработка файла: /{sity}/{name}.pdf")
             pdf_folder, ok = check_duplicates(sity, name)
             if ok:

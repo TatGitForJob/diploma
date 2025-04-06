@@ -23,9 +23,11 @@ else
     exit 1
 fi
 
+source ../.env
+
 python -m ensurepip --upgrade
 pip install --upgrade pip
 # Установка необходимых библиотек
-pip install PyMuPDF openpyxl pillow PyPDF2 yadisk requests
+pip install PyMuPDF openpyxl pillow PyPDF2 yadisk requests 
 
 echo "Настройка завершена! Для активации окружения в будущем выполните: source $ACTIVATE_SCRIPT"
