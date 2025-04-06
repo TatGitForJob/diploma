@@ -10,7 +10,6 @@ y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
 def save_to_yandex_disk(file_path):
     y.upload(file_path, file_path)
     y.publish(file_path)
-    print(f"✅ Загружено: {file_path}")
 
 async def async_save_to_yandex_disk(file_path, loop, executor):
     await loop.run_in_executor(executor, save_to_yandex_disk, file_path)
@@ -53,7 +52,6 @@ async def process_excel(pdfs_folder, excel_path):
     await asyncio.gather(*tasks)
 
     #save_pdf_links(ws,"/output")
-    print("DBG")
     wb.save(excel_path)
     save_to_yandex_disk(excel_path)
 
@@ -64,4 +62,5 @@ async def process_pdf(sity,name,pdf_folder,xlsx_folder):
     split_pdf_by_pages(pdf_file_path, pdf_folder)
     await process_excel(pdf_folder, f"{xlsx_folder}/{name}.xlsx")
     y.move(f"/{sity}/{name}.pdf", f"/{sity}/done/{name}.pdf")
+    print(f"Конец обработки файла: /{sity}/{name}.pdf")
     y.close()

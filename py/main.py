@@ -4,16 +4,20 @@ import pdf_processor as pdf
 
 y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
 
-def mkdir_and_check_duplicates(sity,name):
+def makedirs(sity):
     pdf_folder=f"{sity}_pdf"
     xlsx_folder=f"{sity}_xlsx"
     if not y.exists(pdf_folder):
         y.mkdir(pdf_folder)
     if not y.exists(xlsx_folder):
         y.mkdir(xlsx_folder)
+    os.makedirs(xlsx_folder, exist_ok=True)
+    time.sleep(1)
+    return xlsx_folder
+
+def check_duplicates(sity,name):
     pdf_folder=f"{sity}_pdf/{name}"
     os.makedirs(pdf_folder, exist_ok=True)
-    os.makedirs(xlsx_folder, exist_ok=True)
     if not y.exists(pdf_folder):
         y.mkdir(pdf_folder)
     else:
@@ -23,7 +27,7 @@ def mkdir_and_check_duplicates(sity,name):
     if y.exists(xlsx_file):
         print(f"Дубликат excel файл на диске: {xlsx_file}:")
         return "","",False
-    return pdf_folder,xlsx_folder,True
+    return pdf_folder,True
 
 async def main():
     if len(sys.argv) < 2:
@@ -45,12 +49,14 @@ async def main():
 
     tasks = []
 
+    xlsx_folder = makedirs(sity)
+
     for item in y.listdir(folder_path):
         if item["type"] == "file" and item["name"].lower().endswith(".pdf"):
             filename = item["name"]
             name = os.path.splitext(filename)[0]
-            print(f"📄 Обработка файла: {name}")
-            pdf_folder,xlsx_folder,ok = mkdir_and_check_duplicates(sity,name)
+            print(f"Обработка файла: /{sity}/{name}.pdf")
+            pdf_folder,ok = check_duplicates(sity,name)
             if ok:
                 tasks.append(pdf.process_pdf(sity,name,pdf_folder,xlsx_folder))
     await asyncio.gather(*tasks)
@@ -59,5 +65,5 @@ async def main():
 if __name__ == "__main__":
     start = time.time()
     asyncio.run(main())
-    print(f"⏱ Выполнено за {time.time() - start:.2f} секунд")
+    print(f"Выполнено за {time.time() - start:.2f} секунд")
     y.close()
