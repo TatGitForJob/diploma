@@ -7,28 +7,45 @@ import excel_filler as excel
 
 # Конфигурация
 YANDEX_TOKEN = "y0__xCg-LqmBhjblgMg4LuN3hIYWcHG7vB3EnF3siKkWEK40i7ZiA"
-YANDEX_ID = "1130000065607622"
-REMOTE_PDF_PATH = "/Moscow/77777.pdf"
-LOCAL_PDF_PATH = "../pdfs/77777.pdf"
-PDF_OUTPUT_FOLDER = "../pdfs"
-EXCEL_OUTPUT_PATH = "out.xlsx"
+CLASS = "34329"
+SITY = "Moscow"
 
-def save_to_yandex_disk(y, folder, file_path):
+y = yadisk.YaDisk(token=YANDEX_TOKEN)
+
+def save_pdf_to_yandex_disk( remote_folder, file_path):
     filename = os.path.basename(file_path)
     name, ext = os.path.splitext(filename)
-    if not y.exists(folder):
-        y.mkdir(folder)
-
+    if not y.exists(remote_folder):
+        y.mkdir(remote_folder) 
+    remote_folder=f"{remote_folder}/{name}"
+    if not y.exists(remote_folder):
+        y.mkdir(remote_folder)
+    else:
+        print(f"Дубликат аудитория {name}:")
 
     i = 1
-    while y.exists(f"{folder}/{filename}"):
+    while y.exists(f"{remote_folder}/{filename}"):
         filename = f"{name} _{i}{ext}"
         i += 1
-    y.upload(file_path, f"{folder}/{filename}")
+    y.upload(file_path, f"{remote_folder}/{filename}")
+    y.publish(f"{remote_folder}/{filename}")
     print(f"✅ Загружено: {filename}")
 
-async def async_save_to_yandex_disk(y, folder, file_path, loop, executor):
-    await loop.run_in_executor(executor, save_to_yandex_disk, y, folder, file_path)
+async def async_save_to_yandex_disk(folder, file_path, loop, executor):
+    await loop.run_in_executor(executor, save_pdf_to_yandex_disk, folder, file_path)
+
+def save_to_yandex_disk( remote_folder, file_path):
+    filename = os.path.basename(file_path)
+    name, ext = os.path.splitext(filename)
+    if not y.exists(remote_folder):
+        y.mkdir(remote_folder)
+
+    i = 1
+    while y.exists(f"{remote_folder}/{filename}"):
+        filename = f"{name} _{i}{ext}"
+        i += 1
+    y.upload(file_path, f"{remote_folder}/{filename}")
+    print(f"✅ Загружено: {filename}")
 
 def split_pdf_by_pages(input_pdf, out_folder, chunk_size=2):
     base = os.path.splitext(os.path.basename(input_pdf))[0]
@@ -42,47 +59,57 @@ def split_pdf_by_pages(input_pdf, out_folder, chunk_size=2):
             writer.write(f)
     os.remove(input_pdf)
 
-async def process_excel(y, pdfs_folder, excel_path, loop, executor):
+#def save_pdf_links(ws,pdf_files_path):
+    #print(ws,pdf_files_path)
+
+
+
+async def process_excel(pdfs_folder, excel_path):
+    loop = asyncio.get_event_loop()
+    executor = ThreadPoolExecutor()
+    tasks = []
+
     wb = Workbook()
     ws = wb.active
     excel.prepare_excel(ws)
     row = 2
-    tasks = []
-
     for filename in sorted(os.listdir(pdfs_folder), key=excel.natural_sort_key):
         if not filename.lower().endswith(".pdf"):
             continue
         pdf_path = os.path.join(pdfs_folder, filename)
-        tasks.append(async_save_to_yandex_disk(y, "/output", pdf_path, loop, executor))
+        tasks.append(async_save_to_yandex_disk("/output", pdf_path, loop, executor))
         excel.fill_text_cells(ws,row,filename)
         excel.fill_image_cells(ws,row,pdf_path)
         row += 1
+    await asyncio.gather(*tasks)
+
+    #save_pdf_links(ws,"/output")
+
     wb.save(excel_path)
-    tasks.append(async_save_to_yandex_disk(y, "/xlsx", excel_path, loop, executor))
-    return tasks
+    save_to_yandex_disk("/xlsx", excel_path)
 
 async def main():
     start = time.time()
     print("⬇️ Старт обработки...")
 
-    shutil.rmtree(PDF_OUTPUT_FOLDER, ignore_errors=True)
-    os.makedirs(PDF_OUTPUT_FOLDER, exist_ok=True)
+    pdf_folder=f"../pdfs/{CLASS}"
+    xlsx_folder="../xlsx"
+    pdf_file_path=f"{pdf_folder}/{CLASS}.pdf"
 
-    y = yadisk.YaDisk(token=YANDEX_TOKEN)
-    y.download(REMOTE_PDF_PATH, LOCAL_PDF_PATH)
+    shutil.rmtree(pdf_folder, ignore_errors=True)
+    shutil.rmtree(xlsx_folder, ignore_errors=True)
+    os.makedirs(pdf_folder, exist_ok=True)
+    os.makedirs(xlsx_folder, exist_ok=True)
 
-    split_pdf_by_pages(LOCAL_PDF_PATH, PDF_OUTPUT_FOLDER)
 
-    loop = asyncio.get_event_loop()
-    executor = ThreadPoolExecutor()
-    upload_tasks = await process_excel(
-        y, PDF_OUTPUT_FOLDER, EXCEL_OUTPUT_PATH
-        ,loop,executor
-    )
+    y.download(f"/{SITY}/{CLASS}.pdf", pdf_file_path)
 
-    await asyncio.gather(*upload_tasks)
+    split_pdf_by_pages(pdf_file_path, pdf_folder)
+
+    await process_excel(pdf_folder, f"{xlsx_folder}/{CLASS}.xlsx")
 
     print(f"⏱ Выполнено за {time.time() - start:.2f} секунд")
+    y.close()
 
 
 if __name__ == "__main__":

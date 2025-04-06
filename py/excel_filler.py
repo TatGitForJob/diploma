@@ -25,11 +25,6 @@ def prepare_excel(ws):
         ws.column_dimensions[get_column_letter(col)].width = COLUMN_WIDTHS[col-1]
     ws.row_dimensions[1].height = 50
 
-def generate_yadisk_link(filename):
-    base_url = "https://docs.yandex.ru/docs/view?url=ya-disk%3A%2F%2F%2Fdisk%2Foutput%2F"
-    return f"{base_url}{filename}&name={filename}&uid={YANDEX_ID}"
-
-
 def natural_sort_key(filename):
     return int(filename.split('_')[1].split('.')[0])
 
@@ -38,7 +33,6 @@ def fill_text_cells(ws, row, filename):
     cell.alignment = Alignment(horizontal="center", vertical="center")
 
     cell = ws.cell(row=row, column=9, value="Ссылка на PDF")
-    cell.hyperlink = generate_yadisk_link(filename)
     cell.style = "Hyperlink"
     cell.alignment = Alignment(vertical="center")
 
