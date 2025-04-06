@@ -1,11 +1,27 @@
-import sys
+from flask import Flask, request, jsonify
 import os
 import time
 import yadisk
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
+import asyncio
+import logging
+from datetime import datetime
 
+app = Flask("Diploma")
 y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
+
+
+os.makedirs("logs", exist_ok=True)
+log_filename = datetime.now().strftime("logs/app_%Y-%m-%d.log")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler(log_filename, encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
 
 def makedirs(sity):
     pdf_folder = f"{sity}_pdf"
@@ -22,41 +38,28 @@ def makedirs(sity):
 def check_duplicates(sity, name):
     pdf_folder = f"{sity}_pdf/{name}"
     Path(pdf_folder).mkdir(parents=True, exist_ok=True)
-
     if not y.exists(pdf_folder):
         y.mkdir(pdf_folder)
     else:
         print(f"Дубликат директории на диске: {pdf_folder}")
         return "", False
-
     xlsx_file = f"{sity}_xlsx/{name}.xlsx"
     if y.exists(xlsx_file):
         print(f"Дубликат Excel-файла на диске: {xlsx_file}")
         return "", False
-
     return pdf_folder, True
 
-
 def run_async_process_pdf(sity, name, pdf_folder, xlsx_folder):
-    import asyncio
     import pdf_processor as pdf  # импорт внутри процесса
     asyncio.run(pdf.process_pdf(sity, name, pdf_folder, xlsx_folder))
 
-def main():
-    if len(sys.argv) < 2:
-        print("Укажи название города на Яндекс.Диске, например:")
-        return
-
-    sity = sys.argv[1]
+def process_city(sity):
     if sity not in ["Moscow", "Piter", "Novgorod"]:
-        print("Город не из списка: Moscow, Piter, Novgorod")
-        return
+        return "Город не из списка: Moscow, Piter, Novgorod"
 
     folder_path = f"/{sity}"
-
     if not y.exists(folder_path):
-        print(f"Папка '{folder_path}' не найдена на Яндекс.Диске.")
-        return
+        return f"Папка '{folder_path}' не найдена на Яндекс.Диске."
 
     done_folder = f"{folder_path}/done"
     if not y.exists(done_folder):
@@ -77,11 +80,27 @@ def main():
             if ok:
                 tasks.append((sity, name, pdf_folder, xlsx_folder))
 
+    if not tasks:
+        return "Нет файлов для обработки."
+
     with Pool(cpu_count()) as pool:
         pool.starmap(run_async_process_pdf, tasks)
 
+    return "Файлы обработаны"
+
+@app.route("/process", methods=["POST"])
+def trigger_processing():
+    data = request.get_json()
+    sity = data.get("sity")
+    print(f"➡️ Запрос на обработку города: {sity}")
+    try:
+        start = time.time()
+        result = process_city(sity)
+        duration = time.time() - start
+        return jsonify({"status": result, "duration_sec": round(duration, 2)})
+    except Exception as e:
+        print(f"Ошибка: {e}")
+        return jsonify({"status": "Что-то пошло не так", "error": str(e)}), 500
+
 if __name__ == "__main__":
-    start = time.time()
-    main()
-    print(f"Выполнено за {time.time() - start:.2f} секунд")
-    y.close()
+    app.run(host="0.0.0.0", port=8000)
