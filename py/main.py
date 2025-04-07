@@ -7,8 +7,11 @@ from pathlib import Path
 import asyncio
 import logging
 from datetime import datetime
+from flask_cors import CORS
 
 app = Flask("Diploma")
+CORS(app)
+
 y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
 
 

@@ -19,7 +19,13 @@ git clone https://github.com/TatGitForJob/diploma.git
 cd diploma
 python -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+source py/setup.py
+apt install npm
+npm create vite@latest frontend -- --template react
+cd frontend
+npm install
+npm install axios
+npm run dev
 ```
 
 ---

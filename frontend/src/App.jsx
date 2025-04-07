@@ -1,0 +1,105 @@
+import { useState, useEffect } from "react"
+import axios from "axios"
+
+const validCities = {
+  Moscow: "mos123",
+  Piter: "pit456",
+  Novgorod: "nov789",
+}
+
+export default function CityApp() {
+  const [step, setStep] = useState(1)
+  const [city, setCity] = useState("")
+  const [password, setPassword] = useState("")
+  const [message, setMessage] = useState("")
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const storedCity = localStorage.getItem("authCity")
+    if (storedCity && validCities[storedCity]) {
+      setCity(storedCity)
+      setStep(2)
+    }
+  }, [])
+
+  const handleLogin = () => {
+    if (validCities[city] && validCities[city] === password) {
+      localStorage.setItem("authCity", city)
+      setStep(2)
+      setMessage("")
+    } else {
+      setMessage("Неверный город или пароль")
+    }
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem("authCity")
+    setCity("")
+    setPassword("")
+    setStep(1)
+    setMessage("")
+  }
+
+  const handleProcess = async () => {
+    setLoading(true)
+    setMessage("Обработка запущена... Ожидайте завершения")
+    try {
+      const res = await axios.post("http://localhost:8000/process", { sity: city })
+      setMessage(res.data.status || "Готово")
+    } catch (err) {
+      setMessage("Ошибка при запуске обработки")
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-4">
+      {step === 1 && (
+        <div className="max-w-sm w-full space-y-4">
+          <h1 className="text-xl font-bold text-center">Вход по городу</h1>
+          <input
+            type="text"
+            placeholder="Город (Moscow, Piter, Novgorod)"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+          <input
+            type="password"
+            placeholder="Пароль"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+          <button
+            onClick={handleLogin}
+            className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+          >
+            Войти
+          </button>
+          {message && <p className="text-red-500 text-sm text-center">{message}</p>}
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="space-y-4 text-center">
+          <h2 className="text-xl font-semibold">Город: {city}</h2>
+          <button
+            onClick={handleProcess}
+            disabled={loading}
+            className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700"
+          >
+            {loading ? "Обработка..." : "Запустить обработку"}
+          </button>
+          <button
+            onClick={handleLogout}
+            className="bg-gray-500 text-white px-4 py-1 rounded hover:bg-gray-600"
+          >
+            Выйти
+          </button>
+          {message && <p className="text-blue-600 mt-2">{message}</p>}
+        </div>
+      )}
+    </div>
+  )
+}
