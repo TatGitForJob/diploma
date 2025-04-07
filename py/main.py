@@ -135,11 +135,16 @@ def list_xlsx_files():
             return jsonify({"files": []})
 
         files = y.listdir(folder_path)
+
         xlsx_files = sorted(
-            [f["name"] for f in files if f["type"] == "file" and f["name"].endswith(".xlsx")]
+            [f for f in files if f["type"] == "file" and f["name"].endswith(".xlsx")],
+            key=lambda f: f["created"],
+            reverse=True
         )
-        logging.info(f"Найдено {len(xlsx_files)} файлов: {xlsx_files}")
-        return jsonify({"files": xlsx_files})
+
+        file_names = [f["name"] for f in xlsx_files]
+        logging.info(f"Найдено {len(file_names)} файлов: {file_names}")
+        return jsonify({"files": file_names})
 
     except Exception as e:
         logging.error(f"Ошибка при получении файлов: {e}")
