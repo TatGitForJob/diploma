@@ -14,6 +14,7 @@ export default function CityApp() {
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
   const [xlsxFiles, setXlsxFiles] = useState([])
+  const [selectedFiles, setSelectedFiles] = useState([])
   const [processedFiles, setProcessedFiles] = useState([])
   const [duplicateFiles, setDuplicateFiles] = useState([])
 
@@ -42,6 +43,7 @@ export default function CityApp() {
     setStep(1)
     setMessage("")
     setXlsxFiles([])
+    setSelectedFiles([])
     setProcessedFiles([])
     setDuplicateFiles([])
   }
@@ -78,6 +80,38 @@ export default function CityApp() {
     }
   }
 
+  const handleFileToggle = (filename) => {
+    setSelectedFiles((prev) =>
+      prev.includes(filename) ? prev.filter((f) => f !== filename) : [...prev, filename]
+    )
+  }
+
+  const handleDownloadSelected = async () => {
+    if (selectedFiles.length === 0) {
+      setMessage("Сначала выберите файлы")
+      return
+    }
+    try {
+      const response = await axios.post("http://localhost:8000/download-xlsx", {
+        sity: city,
+        files: selectedFiles,
+      }, {
+        responseType: 'blob',
+      })
+
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `${city}_selected_files.zip`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+
+    } catch (err) {
+      setMessage("Ошибка при скачивании файлов")
+    }
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 font-sans">
       {step === 1 && (
@@ -106,7 +140,7 @@ export default function CityApp() {
       )}
 
       {step === 2 && (
-        <div className="space-y-6 text-center w-full max-w-4xl">
+        <div className="space-y-6 text-center w-full max-w-5xl">
           <h2 className="text-2xl font-semibold text-gray-800">Город: {city}</h2>
           <div className="flex flex-wrap gap-4 justify-center">
             <button
@@ -121,6 +155,12 @@ export default function CityApp() {
               className="bg-blue-600 text-white px-6 py-3 rounded-md text-lg hover:bg-blue-700"
             >
               Получить список Excel-файлов
+            </button>
+            <button
+              onClick={handleDownloadSelected}
+              className="bg-purple-600 text-white px-6 py-3 rounded-md text-lg hover:bg-purple-700"
+            >
+              Скачать Excel-файлы
             </button>
             <button
               onClick={handleLogout}
@@ -159,7 +199,13 @@ export default function CityApp() {
                 <h3 className="font-semibold text-lg text-indigo-700 mb-2">Файлы Excel</h3>
                 <ul className="text-sm text-left bg-white rounded-md shadow p-3 w-64">
                   {xlsxFiles.map((file, i) => (
-                    <li key={i}>{file}</li>
+                    <li
+                      key={i}
+                      className={`cursor-pointer px-2 py-1 rounded hover:bg-indigo-100 ${selectedFiles.includes(file) ? 'bg-indigo-200 font-semibold' : ''}`}
+                      onClick={() => handleFileToggle(file)}
+                    >
+                      {file}
+                    </li>
                   ))}
                 </ul>
               </div>

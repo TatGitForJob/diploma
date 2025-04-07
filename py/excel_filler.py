@@ -4,7 +4,6 @@ from openpyxl.drawing.image import Image as XLImage
 from openpyxl.utils import get_column_letter
 from PIL import Image
 
-# Конфигурация
 CROPS = [(25, 90, 400, 220), (410, 90, 600, 200)]
 COLUMN_WIDTHS = [20, 54, 20, 20, 20, 28, 10, 10, 30]
 

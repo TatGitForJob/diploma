@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
+from flask_cors import CORS
 import os
 import time
 import yadisk
@@ -7,7 +8,9 @@ from pathlib import Path
 import asyncio
 import logging
 from datetime import datetime
-from flask_cors import CORS
+import tempfile
+import zipfile
+from io import BytesIO
 
 app = Flask("Diploma")
 CORS(app)
@@ -60,7 +63,7 @@ def check_duplicates(sity, name):
     return pdf_folder, False
 
 def run_async_process_pdf(sity, name, pdf_folder, xlsx_folder):
-    import pdf_processor as pdf  # импорт внутри процесса
+    import pdf_processor as pdf
     asyncio.run(pdf.process_pdf(sity, name, pdf_folder, xlsx_folder))
 
 def process_city(sity: str) -> tuple[str, list[str], list[str]]:
@@ -149,6 +152,43 @@ def list_xlsx_files():
     except Exception as e:
         logging.error(f"Ошибка при получении файлов: {e}")
         return jsonify({"error": str(e)}), 500
+
+@app.route("/download-xlsx", methods=["POST"])
+def download_xlsx_files():
+    data = request.get_json()
+    sity = data.get("sity")
+    files = data.get("files", [])
+    logging.info(f"Запрошены excel на скачивание: {files}")
+
+    if not sity or not isinstance(files, list) or not files:
+        return jsonify({"error": "Некорректные данные запроса"}), 400
+
+    remote_folder = f"/{sity}_xlsx"
+    zip_buffer = BytesIO()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+            for filename in files:
+                remote_path = f"{remote_folder}/{filename}"
+                local_path = os.path.join(tmpdir, filename)
+
+                try:
+                    y.download(remote_path, local_path)
+                    #done_folder = f"{remote_folder}/done"
+                    #if not y.exists(done_folder):
+                    #    y.mkdir(done_folder)
+                    #y.move(remote_path, f"{done_folder}/{filename}")
+                    zipf.write(local_path, arcname=filename)
+                except Exception as e:
+                    logging.error(f"Ошибка при скачивании {filename}: {e}")
+
+    zip_buffer.seek(0)
+    return send_file(
+        zip_buffer,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name=f"{sity}_xlsx_selected.zip"
+    )
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000)
