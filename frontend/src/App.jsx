@@ -14,6 +14,8 @@ export default function CityApp() {
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
   const [xlsxFiles, setXlsxFiles] = useState([])
+  const [processedFiles, setProcessedFiles] = useState([])
+  const [duplicateFiles, setDuplicateFiles] = useState([])
 
   useEffect(() => {
     const storedCity = localStorage.getItem("authCity")
@@ -40,6 +42,8 @@ export default function CityApp() {
     setStep(1)
     setMessage("")
     setXlsxFiles([])
+    setProcessedFiles([])
+    setDuplicateFiles([])
   }
 
   const handleProcess = async () => {
@@ -47,8 +51,16 @@ export default function CityApp() {
     setMessage("Обработка запущена... Ожидайте завершения")
     try {
       const res = await axios.post("http://localhost:8000/process", { sity: city })
-      setMessage(res.data.status || "Готово")
+      const data = res.data || {}
+      if (typeof data === 'object') {
+        setMessage(data.status || "Готово")
+        setProcessedFiles(Array.isArray(data.processed) ? data.processed : [])
+        setDuplicateFiles(Array.isArray(data.duplicates) ? data.duplicates : [])
+      } else {
+        setMessage("Некорректный ответ от сервера")
+      }
     } catch (err) {
+      console.error(err)
       setMessage("Ошибка при запуске обработки")
     }
     setLoading(false)
@@ -118,9 +130,32 @@ export default function CityApp() {
             Выйти
           </button>
           {message && <p className="text-blue-600 mt-2">{message}</p>}
+
+          {processedFiles.length > 0 && (
+            <div className="mt-4">
+              <h3 className="font-medium">Обработанные:</h3>
+              <ul className="text-sm text-left">
+                {processedFiles.map((file, i) => (
+                  <li key={i}>{file}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {duplicateFiles.length > 0 && (
+            <div className="mt-4">
+              <h3 className="font-medium text-yellow-700">Дубликаты:</h3>
+              <ul className="text-sm text-left">
+                {duplicateFiles.map((file, i) => (
+                  <li key={i}>{file}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {xlsxFiles.length > 0 && (
             <div className="mt-4">
-              <h3 className="font-medium">Файлы:</h3>
+              <h3 className="font-medium">Файлы Excel:</h3>
               <ul className="text-sm text-left">
                 {xlsxFiles.map((file, i) => (
                   <li key={i}>{file}</li>

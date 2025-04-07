@@ -27,6 +27,7 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+logging.getLogger("yadisk").setLevel(logging.WARNING)
 
 def makedirs(sity):
     pdf_folder = f"{sity}_pdf"
@@ -46,25 +47,29 @@ def check_duplicates(sity, name):
     if not y.exists(pdf_folder):
         y.mkdir(pdf_folder)
     else:
-        logging.error(f"Дубликат директории на диске: {pdf_folder}")
-        return "", False
-    xlsx_file = f"{sity}_xlsx/{name}.xlsx"
-    if y.exists(xlsx_file):
-        logging.error(f"Дубликат Excel-файла на диске: {xlsx_file}")
-        return "", False
+        logging.info(f"Дубликат директории на диске: {pdf_folder}")
+        y.remove(pdf_folder, permanently=True)
+        time.sleep(1)
+        y.mkdir(pdf_folder)
+        xlsx_file = f"{sity}_xlsx/{name}.xlsx"
+        if y.exists(xlsx_file):
+            logging.info(f"Дубликат Excel-файла на диске: {xlsx_file}")
+            y.remove(xlsx_file, permanently=True)
+        return pdf_folder, False
+
     return pdf_folder, True
 
 def run_async_process_pdf(sity, name, pdf_folder, xlsx_folder):
     import pdf_processor as pdf  # импорт внутри процесса
     asyncio.run(pdf.process_pdf(sity, name, pdf_folder, xlsx_folder))
 
-def process_city(sity):
+def process_city(sity: str) -> tuple[str, list[str], list[str]]:
     if sity not in SITY:
-        return f"Город не из списка: {SITY}"
+        return f"Город не из списка: {SITY}", [],[]
 
     folder_path = f"/{sity}"
     if not y.exists(folder_path):
-        return f"Папка '{folder_path}' не найдена на Яндекс.Диске."
+        return f"Папка '{folder_path}' не найдена на Яндекс.Диске.", [], []
 
     done_folder = f"{folder_path}/done"
     if not y.exists(done_folder):
@@ -72,6 +77,8 @@ def process_city(sity):
 
     xlsx_folder = makedirs(sity)
     tasks = []
+    duplicates = []
+    processed = []
 
     for item in y.listdir(folder_path):
         if item["type"] == "file" and item["name"].lower().endswith(".pdf"):
@@ -81,17 +88,20 @@ def process_city(sity):
                 logging.error(f"Имя файла не длины 5: /{sity}/{name}.pdf")
                 continue
             logging.info(f"Обработка файла: /{sity}/{name}.pdf")
-            pdf_folder, ok = check_duplicates(sity, name)
-            if ok:
-                tasks.append((sity, name, pdf_folder, xlsx_folder))
+            pdf_folder, duplicate = check_duplicates(sity, name)
+            if duplicate:
+                duplicates.append(pdf_folder)
+            else:
+                processed.append(pdf_folder)
+            tasks.append((sity, name, pdf_folder, xlsx_folder))
 
     if not tasks:
-        return "Нет файлов для обработки."
+        return "Нет файлов для обработки.", [], []
 
     with Pool(cpu_count()) as pool:
         pool.starmap(run_async_process_pdf, tasks)
 
-    return "Файлы обработаны"
+    return "Файлы обработаны", processed, duplicates
 
 @app.route("/process", methods=["POST"])
 def trigger_processing():
@@ -100,10 +110,10 @@ def trigger_processing():
     logging.info(f"➡️ Запрос на обработку города: {sity}")
     try:
         start = time.time()
-        result = process_city(sity)
+        status, processed, duplicates = process_city(sity)
         duration = time.time() - start
         logging.info("Успешный запрос процессинга")
-        return jsonify({"status": result, "duration_sec": round(duration, 2)})
+        return jsonify({"status": status, "processed": processed, "duplicates": duplicates, "duration_sec": round(duration, 2)})
     except Exception as e:
         logging.error(f"Что-то пошло не так, error: {str(e)}")
         return jsonify({"status": "Что-то пошло не так", "error": str(e)}), 500
