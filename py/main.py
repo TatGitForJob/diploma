@@ -55,9 +55,9 @@ def check_duplicates(sity, name):
         if y.exists(xlsx_file):
             logging.info(f"Дубликат Excel-файла на диске: {xlsx_file}")
             y.remove(xlsx_file, permanently=True)
-        return pdf_folder, False
+        return pdf_folder, True
 
-    return pdf_folder, True
+    return pdf_folder, False
 
 def run_async_process_pdf(sity, name, pdf_folder, xlsx_folder):
     import pdf_processor as pdf  # импорт внутри процесса

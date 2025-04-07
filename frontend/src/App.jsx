@@ -79,27 +79,25 @@ export default function CityApp() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 font-sans">
       {step === 1 && (
-        <div className="max-w-sm w-full space-y-4">
-          <h1 className="text-xl font-bold text-center">Вход по городу</h1>
+        <div className="bg-white shadow-lg rounded-lg p-8 w-full max-w-md space-y-4">
+          <h1 className="text-2xl font-bold text-center text-gray-800">Вход по городу</h1>
           <input
             type="text"
             placeholder="Город (Moscow, Piter, Novgorod)"
             value={city}
             onChange={(e) => setCity(e.target.value)}
-            className="w-full p-2 border rounded"
           />
           <input
             type="password"
             placeholder="Пароль"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-2 border rounded"
           />
           <button
             onClick={handleLogin}
-            className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+            className="w-full bg-gray-700 text-white py-3 text-lg rounded-md hover:bg-gray-800"
           >
             Войти
           </button>
@@ -108,61 +106,65 @@ export default function CityApp() {
       )}
 
       {step === 2 && (
-        <div className="space-y-4 text-center">
-          <h2 className="text-xl font-semibold">Город: {city}</h2>
-          <button
-            onClick={handleProcess}
-            disabled={loading}
-            className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700"
-          >
-            {loading ? "Обработка..." : "Запустить обработку"}
-          </button>
-          <button
-            onClick={handleFetchXlsxFiles}
-            className="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700"
-          >
-            Получить список Excel-файлов
-          </button>
-          <button
-            onClick={handleLogout}
-            className="bg-gray-500 text-white px-4 py-1 rounded hover:bg-gray-600"
-          >
-            Выйти
-          </button>
-          {message && <p className="text-blue-600 mt-2">{message}</p>}
+        <div className="space-y-6 text-center w-full max-w-4xl">
+          <h2 className="text-2xl font-semibold text-gray-800">Город: {city}</h2>
+          <div className="flex flex-wrap gap-4 justify-center">
+            <button
+              onClick={handleProcess}
+              disabled={loading}
+              className="bg-gray-600 text-white px-6 py-3 rounded-md text-lg hover:bg-gray-700 disabled:opacity-60"
+            >
+              {loading ? "Обработка..." : "Запустить обработку"}
+            </button>
+            <button
+              onClick={handleFetchXlsxFiles}
+              className="bg-blue-600 text-white px-6 py-3 rounded-md text-lg hover:bg-blue-700"
+            >
+              Получить список Excel-файлов
+            </button>
+            <button
+              onClick={handleLogout}
+              className="bg-red-500 text-white px-6 py-3 rounded-md text-lg hover:bg-red-600"
+            >
+              Выйти
+            </button>
+          </div>
+          {message && <p className="text-blue-700 mt-2 font-medium">{message}</p>}
 
-          {processedFiles.length > 0 && (
-            <div className="mt-4">
-              <h3 className="font-medium">Обработанные:</h3>
-              <ul className="text-sm text-left">
-                {processedFiles.map((file, i) => (
-                  <li key={i}>{file}</li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <div className="flex flex-wrap justify-center gap-8 mt-6">
+            {processedFiles.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-lg text-green-700 mb-2">Обработанные</h3>
+                <ul className="text-sm text-left bg-white rounded-md shadow p-3 w-64">
+                  {processedFiles.map((file, i) => (
+                    <li key={i}>{file}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-          {duplicateFiles.length > 0 && (
-            <div className="mt-4">
-              <h3 className="font-medium text-yellow-700">Дубликаты:</h3>
-              <ul className="text-sm text-left">
-                {duplicateFiles.map((file, i) => (
-                  <li key={i}>{file}</li>
-                ))}
-              </ul>
-            </div>
-          )}
+            {duplicateFiles.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-lg text-yellow-700 mb-2">Дубликаты</h3>
+                <ul className="text-sm text-left bg-white rounded-md shadow p-3 w-64">
+                  {duplicateFiles.map((file, i) => (
+                    <li key={i}>{file}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-          {xlsxFiles.length > 0 && (
-            <div className="mt-4">
-              <h3 className="font-medium">Файлы Excel:</h3>
-              <ul className="text-sm text-left">
-                {xlsxFiles.map((file, i) => (
-                  <li key={i}>{file}</li>
-                ))}
-              </ul>
-            </div>
-          )}
+            {xlsxFiles.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-lg text-indigo-700 mb-2">Файлы Excel</h3>
+                <ul className="text-sm text-left bg-white rounded-md shadow p-3 w-64">
+                  {xlsxFiles.map((file, i) => (
+                    <li key={i}>{file}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
