@@ -13,6 +13,7 @@ export default function CityApp() {
   const [password, setPassword] = useState("")
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
+  const [xlsxFiles, setXlsxFiles] = useState([])
 
   useEffect(() => {
     const storedCity = localStorage.getItem("authCity")
@@ -38,6 +39,7 @@ export default function CityApp() {
     setPassword("")
     setStep(1)
     setMessage("")
+    setXlsxFiles([])
   }
 
   const handleProcess = async () => {
@@ -50,6 +52,18 @@ export default function CityApp() {
       setMessage("Ошибка при запуске обработки")
     }
     setLoading(false)
+  }
+
+  const handleFetchXlsxFiles = async () => {
+    try {
+      const res = await axios.get("http://localhost:8000/xlsx-list", {
+        params: { sity: city }
+      })
+      setXlsxFiles(res.data.files || [])
+      setMessage(`Найдено файлов: ${res.data.files.length}`)
+    } catch (err) {
+      setMessage("Ошибка при получении списка файлов")
+    }
   }
 
   return (
@@ -92,12 +106,28 @@ export default function CityApp() {
             {loading ? "Обработка..." : "Запустить обработку"}
           </button>
           <button
+            onClick={handleFetchXlsxFiles}
+            className="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700"
+          >
+            Получить список Excel-файлов
+          </button>
+          <button
             onClick={handleLogout}
             className="bg-gray-500 text-white px-4 py-1 rounded hover:bg-gray-600"
           >
             Выйти
           </button>
           {message && <p className="text-blue-600 mt-2">{message}</p>}
+          {xlsxFiles.length > 0 && (
+            <div className="mt-4">
+              <h3 className="font-medium">Файлы:</h3>
+              <ul className="text-sm text-left">
+                {xlsxFiles.map((file, i) => (
+                  <li key={i}>{file}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>

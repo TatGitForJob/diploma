@@ -14,6 +14,8 @@ CORS(app)
 
 y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
 
+SITY = ["Moscow", "Piter", "Novgorod"]
+
 
 os.makedirs("logs", exist_ok=True)
 log_filename = datetime.now().strftime("logs/app_%Y-%m-%d.log")
@@ -57,8 +59,8 @@ def run_async_process_pdf(sity, name, pdf_folder, xlsx_folder):
     asyncio.run(pdf.process_pdf(sity, name, pdf_folder, xlsx_folder))
 
 def process_city(sity):
-    if sity not in ["Moscow", "Piter", "Novgorod"]:
-        return "Город не из списка: Moscow, Piter, Novgorod"
+    if sity not in SITY:
+        return f"Город не из списка: {SITY}"
 
     folder_path = f"/{sity}"
     if not y.exists(folder_path):
@@ -105,6 +107,33 @@ def trigger_processing():
     except Exception as e:
         logging.error(f"Что-то пошло не так, error: {str(e)}")
         return jsonify({"status": "Что-то пошло не так", "error": str(e)}), 500
+
+@app.route("/xlsx-list", methods=["GET"])
+def list_xlsx_files():
+    sity = request.args.get("sity")
+
+    if not sity or sity not in SITY:
+        logging.warning("Запрос с неверным или отсутствующим городом: %s", sity)
+        return jsonify({"error": "Неверный или отсутствующий город"}), 400
+
+    folder_path = f"/{sity}_xlsx"
+    logging.info(f"📂 Получение списка xlsx файлов в папке: {folder_path}")
+
+    try:
+        if not y.exists(folder_path):
+            logging.info(f"Папка не найдена: {folder_path}")
+            return jsonify({"files": []})
+
+        files = y.listdir(folder_path)
+        xlsx_files = sorted(
+            [f["name"] for f in files if f["type"] == "file" and f["name"].endswith(".xlsx")]
+        )
+        logging.info(f"Найдено {len(xlsx_files)} файлов: {xlsx_files}")
+        return jsonify({"files": xlsx_files})
+
+    except Exception as e:
+        logging.error(f"Ошибка при получении файлов: {e}")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000)
