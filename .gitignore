@@ -2,7 +2,8 @@ venv
 pdfs
 xlsx
 out.xlsx
-py/__pycache__
+backend/__pycache__
 .env
-py/Moscow*
-py/logs*
+backend/Moscow*
+backend/Novosibirsk*
+backend/logs*

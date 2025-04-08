@@ -17,7 +17,7 @@ CORS(app)
 
 y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
 
-SITY = ["Moscow", "Piter", "Novgorod"]
+SITY = ["Moscow",  "Novosibirsk"]
 
 
 os.makedirs("logs", exist_ok=True)
@@ -177,7 +177,10 @@ def download_xlsx_files():
                     #done_folder = f"{remote_folder}/done"
                     #if not y.exists(done_folder):
                     #    y.mkdir(done_folder)
-                    #y.move(remote_path, f"{done_folder}/{filename}")
+                    #done_filename = f"{done_folder}/{filename}"
+                    #if y.exists(done_filename):
+                    #    y.remove(done_filename, permanently=True)
+                    #y.move(remote_path, done_filename)
                     zipf.write(local_path, arcname=filename)
                 except Exception as e:
                     logging.error(f"Ошибка при скачивании {filename}: {e}")
@@ -189,6 +192,52 @@ def download_xlsx_files():
         as_attachment=True,
         download_name=f"{sity}_xlsx_selected.zip"
     )
+
+@app.route("/upload-pdf", methods=["POST"])
+def upload_pdf_files():
+    sity = request.form.get("sity")
+    files = request.files.getlist("files")
+
+    if not sity or sity not in SITY:
+        logging.error(f"Неверный или отсутствующий город: {sity}")
+        return jsonify({"error": "Неверный или отсутствующий город"}), 400
+
+    if not files:
+        logging.error("Нет файлов в запросе")
+        return jsonify({"error": "Нет файлов для загрузки"}), 400
+
+    folder_path = f"/{sity}"
+    if not y.exists(folder_path):
+        y.mkdir(folder_path)
+
+    success, failed = [], []
+
+    for file in files:
+        filename = file.filename
+        if not filename.lower().endswith(".pdf"):
+            failed.append(filename)
+            continue
+
+        logging.info(f"Начата Загрузка файла: {filename}")
+        try:
+            temp_path = os.path.join(tempfile.gettempdir(), filename)
+            file.save(temp_path)
+            remote_filepath = f"{folder_path}/{filename}"
+            if y.exists(remote_filepath):
+                logging.info(f"Дубликат файла: {filename}")
+                y.remove(remote_filepath, permanently=True)
+            y.upload(temp_path, remote_filepath)
+            logging.info(f"Загружен файл: {filename}")
+            success.append(filename)
+        except Exception as e:
+            logging.error(f"Ошибка при загрузке {filename}: {e}")
+            failed.append(filename)
+
+    return jsonify({
+        "uploaded": success,
+        "failed": failed,
+        "status": f"Загружено: {len(success)}, Ошибки: {len(failed)}"
+    })
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000)

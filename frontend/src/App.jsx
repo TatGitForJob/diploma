@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import "./index.css";
 
@@ -17,6 +17,7 @@ export default function CityApp() {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [processedFiles, setProcessedFiles] = useState([]);
   const [duplicateFiles, setDuplicateFiles] = useState([]);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const storedCity = localStorage.getItem("authCity");
@@ -50,7 +51,7 @@ export default function CityApp() {
 
   const handleProcess = async () => {
     setLoading(true);
-    setMessage("⏳ Обработка запущена...");
+    setMessage("⏳ Обработка PDF запущена...");
     try {
       const res = await axios.post("http://localhost:8000/process", { sity: city });
       const data = res.data || {};
@@ -69,6 +70,7 @@ export default function CityApp() {
   };
 
   const handleFetchXlsxFiles = async () => {
+    setMessage("⏳ Поиск Excel запущен...");
     try {
       const res = await axios.get("http://localhost:8000/xlsx-list", {
         params: { sity: city },
@@ -116,6 +118,24 @@ export default function CityApp() {
     }
   };
 
+  const handlePdfUpload = async (event) => {
+    setMessage("📤 Загрузка PDF файлов...");
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    const formData = new FormData();
+    formData.append("sity", city);
+    for (let file of files) {
+      formData.append("files", file);
+    }
+    try {
+      setMessage("📤 Загрузка PDF-файлов...");
+      await axios.post("http://localhost:8000/upload-pdf", formData);
+      setMessage("✅ Файлы загружены");
+    } catch (err) {
+      setMessage("❌ Ошибка при загрузке PDF-файлов");
+    }
+  };
+
   return (
     <div className="page">
       {step === 1 && (
@@ -150,6 +170,17 @@ export default function CityApp() {
           <h2 className="subtitle">🏙️ Город: {city}</h2>
 
           <div className="button-group">
+            <button onClick={() => fileInputRef.current.click()} className="btn">
+              Загрузить PDF
+            </button>
+            <input
+              type="file"
+              accept="application/pdf"
+              multiple
+              style={{ display: "none" }}
+              ref={fileInputRef}
+              onChange={handlePdfUpload}
+            />
             <button onClick={handleProcess} disabled={loading} className="btn">
               {loading ? "Обработка..." : "Запустить обработку"}
             </button>
@@ -157,7 +188,7 @@ export default function CityApp() {
               Список Excel-файлов
             </button>
             <button onClick={handleDownloadSelected} className="btn">
-              Скачать выбранные
+              Скачать Excel
             </button>
             <button onClick={handleLogout} className="btn danger">
               Выйти

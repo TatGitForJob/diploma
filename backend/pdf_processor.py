@@ -69,6 +69,9 @@ async def process_pdf(sity,name,pdf_folder,xlsx_folder):
     
     split_pdf_by_pages(pdf_file_path, pdf_folder)
     await process_excel(pdf_folder, f"{xlsx_folder}/{name}.xlsx")
-    y.move(f"/{sity}/{name}.pdf", f"/{sity}/done/{name}.pdf")
+    done_filename = f"/{sity}/done/{name}.pdf"
+    if y.exists(done_filename):
+        y.remove(done_filename, permanently=True)
+    y.move(f"/{sity}/{name}.pdf", done_filename)
     print(f"Конец обработки файла: /{sity}/{name}.pdf")
     y.close()
