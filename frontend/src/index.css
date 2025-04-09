@@ -116,23 +116,35 @@ input {
 }
 
 .file-item {
-  padding: 0.5rem;
+  padding: 0.6rem 1rem;
   margin-bottom: 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  cursor: pointer;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
   text-align: center;
+  background-color: #f9f9f9;
+  transition: all 0.2s ease;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #333;
 }
 
 .file-item:hover {
-  background-color: #f3f4f6;
+  background-color: #eef6ff;
+  border-color: #90caf9;
+  cursor: pointer;
 }
 
 .file-item.selected {
-  background-color: #dbeafe;
-  border-color: #3b82f6;
-  color: #1e40af;
-  font-weight: bold;
+  background-color: #d0eaff;
+  border-color: #2196f3;
+  color: #0d47a1;
+}
+
+.file-item.non-clickable {
+  cursor: default;
+  background-color: #f0f0f0;
+  border-style: dashed;
+  color: #888;
 }
 
 .green-title {

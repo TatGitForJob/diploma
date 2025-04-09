@@ -174,13 +174,13 @@ def download_xlsx_files():
 
                 try:
                     y.download(remote_path, local_path)
-                    #done_folder = f"{remote_folder}/done"
-                    #if not y.exists(done_folder):
-                    #    y.mkdir(done_folder)
-                    #done_filename = f"{done_folder}/{filename}"
-                    #if y.exists(done_filename):
-                    #    y.remove(done_filename, permanently=True)
-                    #y.move(remote_path, done_filename)
+                    done_folder = f"{remote_folder}/done"
+                    if not y.exists(done_folder):
+                        y.mkdir(done_folder)
+                    done_filename = f"{done_folder}/{filename}"
+                    if y.exists(done_filename):
+                        y.remove(done_filename, permanently=True)
+                    y.move(remote_path, done_filename)
                     zipf.write(local_path, arcname=filename)
                 except Exception as e:
                     logging.error(f"Ошибка при скачивании {filename}: {e}")

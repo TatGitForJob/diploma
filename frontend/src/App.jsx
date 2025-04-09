@@ -54,6 +54,8 @@ export default function CityApp() {
   const handleProcess = async () => {
     setLoading(true);
     setMessage("⏳ Обработка PDF запущена...");
+    setProcessedFiles([]);
+    setDuplicateFiles([]);
     try {
       const res = await axios.post("http://localhost:8000/process", { sity: city });
       const data = res.data || {};
@@ -73,6 +75,12 @@ export default function CityApp() {
 
   const handleFetchXlsxFiles = async () => {
     setMessage("⏳ Поиск Excel запущен...");
+    setUploadedPdfs([]);
+    setFailedPdfs([]);
+    setProcessedFiles([]);
+    setDuplicateFiles([]);
+    setXlsxFiles([]);
+    setSelectedFiles([]);
     try {
       const res = await axios.get("http://localhost:8000/xlsx-list", {
         params: { sity: city },
@@ -91,6 +99,7 @@ export default function CityApp() {
   };
 
   const handleDownloadSelected = async () => {
+    setSelectedFiles([]);
     if (selectedFiles.length === 0) {
       setMessage("⚠️ Сначала выберите файлы");
       return;
@@ -121,9 +130,11 @@ export default function CityApp() {
   };
 
   const handlePdfUpload = async (event) => {
+    setUploadedPdfs([]);
+    setFailedPdfs([]);
     const files = event.target.files;
     if (!files || files.length === 0) return;
-  
+
     const formData = new FormData();
     formData.append("sity", city);
     for (let file of files) {
@@ -136,7 +147,7 @@ export default function CityApp() {
       const data = res.data;
       const uploaded = data.uploaded || [];
       const failed = data.failed || [];
-  
+
       setUploadedPdfs(uploaded);
       setFailedPdfs(failed);
       setMessage(`✅ Загружено: ${uploaded.length}, ❌ Ошибки: ${failed.length}`);
@@ -144,10 +155,10 @@ export default function CityApp() {
       console.error(err);
       setMessage("❌ Ошибка при загрузке PDF-файлов");
     }
-  
+
     event.target.value = null;
   };
-  
+
   return (
     <div className="page">
       {step === 1 && (
@@ -211,16 +222,16 @@ export default function CityApp() {
 
           <div className="file-columns">
             {uploadedPdfs.length > 0 && (
-              <FileList title="Загруженные PDF" files={uploadedPdfs} className="green-title" />
+              <FileList title="Загруженные PDF" files={uploadedPdfs} className="green-title" clickable={false} />
             )}
             {failedPdfs.length > 0 && (
-              <FileList title="Не загруженные PDF" files={failedPdfs} className="brown-title" />
+              <FileList title="Не загруженные PDF" files={failedPdfs} className="brown-title" clickable={false} />
             )}
             {processedFiles.length > 0 && (
-              <FileList title="Обработанные PDF" files={processedFiles} className="green-title" />
+              <FileList title="Обработанные PDF" files={processedFiles} className="green-title" clickable={false} />
             )}
             {duplicateFiles.length > 0 && (
-              <FileList title="Дубликаты PDF" files={duplicateFiles} className="brown-title" />
+              <FileList title="Дубликаты PDF" files={duplicateFiles} className="brown-title" clickable={false} />
             )}
             {xlsxFiles.length > 0 && (
               <div>
@@ -245,13 +256,13 @@ export default function CityApp() {
   );
 }
 
-function FileList({ title, files, className }) {
+function FileList({ title, files, className, clickable = false }) {
   return (
     <div>
       <h3 className={className}>{title}</h3>
       <ul className="file-list">
         {files.map((file, i) => (
-          <li key={i} className="file-item">{file}</li>
+          <li key={i} className={`file-item ${!clickable ? "non-clickable" : ""}`}>{file}</li>
         ))}
       </ul>
     </div>
