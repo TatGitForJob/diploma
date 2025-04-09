@@ -214,7 +214,7 @@ def upload_pdf_files():
 
     for file in files:
         filename = file.filename
-        if not filename.lower().endswith(".pdf"):
+        if not filename.lower().endswith(".pdf") or len(os.path.splitext(filename)[0]) != 5:
             failed.append(filename)
             continue
 

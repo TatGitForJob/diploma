@@ -17,6 +17,8 @@ export default function CityApp() {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [processedFiles, setProcessedFiles] = useState([]);
   const [duplicateFiles, setDuplicateFiles] = useState([]);
+  const [uploadedPdfs, setUploadedPdfs] = useState([]);
+  const [failedPdfs, setFailedPdfs] = useState([]);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -119,23 +121,33 @@ export default function CityApp() {
   };
 
   const handlePdfUpload = async (event) => {
-    setMessage("📤 Загрузка PDF файлов...");
     const files = event.target.files;
     if (!files || files.length === 0) return;
+  
     const formData = new FormData();
     formData.append("sity", city);
     for (let file of files) {
       formData.append("files", file);
     }
+
     try {
       setMessage("📤 Загрузка PDF-файлов...");
-      await axios.post("http://localhost:8000/upload-pdf", formData);
-      setMessage("✅ Файлы загружены");
+      const res = await axios.post("http://localhost:8000/upload-pdf", formData);
+      const data = res.data;
+      const uploaded = data.uploaded || [];
+      const failed = data.failed || [];
+  
+      setUploadedPdfs(uploaded);
+      setFailedPdfs(failed);
+      setMessage(`✅ Загружено: ${uploaded.length}, ❌ Ошибки: ${failed.length}`);
     } catch (err) {
+      console.error(err);
       setMessage("❌ Ошибка при загрузке PDF-файлов");
     }
+  
+    event.target.value = null;
   };
-
+  
   return (
     <div className="page">
       {step === 1 && (
@@ -198,11 +210,17 @@ export default function CityApp() {
           {message && <p className="info-message">{message}</p>}
 
           <div className="file-columns">
+            {uploadedPdfs.length > 0 && (
+              <FileList title="Загруженные PDF" files={uploadedPdfs} className="green-title" />
+            )}
+            {failedPdfs.length > 0 && (
+              <FileList title="Не загруженные PDF" files={failedPdfs} className="brown-title" />
+            )}
             {processedFiles.length > 0 && (
-              <FileList title="Обработанные" files={processedFiles} className="green-title" />
+              <FileList title="Обработанные PDF" files={processedFiles} className="green-title" />
             )}
             {duplicateFiles.length > 0 && (
-              <FileList title="Дубликаты" files={duplicateFiles} className="brown-title" />
+              <FileList title="Дубликаты PDF" files={duplicateFiles} className="brown-title" />
             )}
             {xlsxFiles.length > 0 && (
               <div>
