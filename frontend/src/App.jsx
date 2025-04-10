@@ -50,14 +50,13 @@ export default function CityApp() {
     setProcessedFiles([]);
     setDuplicateFiles([]);
   };
-
   const handleProcess = async () => {
     setLoading(true);
     setMessage("⏳ Обработка PDF запущена...");
     setProcessedFiles([]);
     setDuplicateFiles([]);
     try {
-      const res = await axios.post("http://localhost:8000/process", { sity: city });
+      const res = await axios.post("http://84.201.135.179:8000/process", { sity: city });
       const data = res.data || {};
       if (typeof data === "object") {
         setMessage(data.status || "✅ Готово");
@@ -72,7 +71,6 @@ export default function CityApp() {
     }
     setLoading(false);
   };
-
   const handleFetchXlsxFiles = async () => {
     setMessage("⏳ Поиск Excel запущен...");
     setUploadedPdfs([]);
@@ -82,7 +80,7 @@ export default function CityApp() {
     setXlsxFiles([]);
     setSelectedFiles([]);
     try {
-      const res = await axios.get("http://localhost:8000/xlsx-list", {
+      const res = await axios.get("http://84.201.135.179:8000/xlsx-list", {
         params: { sity: city },
       });
       setXlsxFiles(res.data.files || []);
@@ -91,13 +89,11 @@ export default function CityApp() {
       setMessage("❌ Ошибка при получении списка файлов");
     }
   };
-
   const handleFileToggle = (filename) => {
     setSelectedFiles((prev) =>
       prev.includes(filename) ? prev.filter((f) => f !== filename) : [...prev, filename]
     );
   };
-
   const handleDownloadSelected = async () => {
     setSelectedFiles([]);
     if (selectedFiles.length === 0) {
@@ -107,7 +103,7 @@ export default function CityApp() {
     try {
       setMessage("📦 Запрос на скачивание отправлен...");
       const response = await axios.post(
-        "http://localhost:8000/download-xlsx",
+        "http://84.201.135.179:8000/download-xlsx",
         {
           sity: city,
           files: selectedFiles,
@@ -128,7 +124,6 @@ export default function CityApp() {
       setMessage("❌ Ошибка при скачивании файлов");
     }
   };
-
   const handlePdfUpload = async (event) => {
     setUploadedPdfs([]);
     setFailedPdfs([]);
@@ -143,7 +138,7 @@ export default function CityApp() {
 
     try {
       setMessage("📤 Загрузка PDF-файлов...");
-      const res = await axios.post("http://localhost:8000/upload-pdf", formData);
+      const res = await axios.post("http://84.201.135.179:8000/upload-pdf", formData);
       const data = res.data;
       const uploaded = data.uploaded || [];
       const failed = data.failed || [];
@@ -158,7 +153,6 @@ export default function CityApp() {
 
     event.target.value = null;
   };
-
   return (
     <div className="page">
       {step === 1 && (

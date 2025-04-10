@@ -33,3 +33,5 @@ pip install PyMuPDF openpyxl pillow PyPDF2 yadisk requests flask flask_cors
 echo "Настройка завершена! Для активации окружения в будущем выполните: source $ACTIVATE_SCRIPT"
 
 python3 main.py
+
+localhost:8000/apidocs/

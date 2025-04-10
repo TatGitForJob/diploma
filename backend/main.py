@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, send_file
+from flasgger import Swagger
 from flask_cors import CORS
 import os
 import time
@@ -14,6 +15,8 @@ from io import BytesIO
 
 app = Flask("Diploma")
 CORS(app)
+from flasgger import Swagger
+swagger = Swagger(app)
 
 y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
 
@@ -108,6 +111,22 @@ def process_city(sity: str) -> tuple[str, list[str], list[str]]:
 
 @app.route("/process", methods=["POST"])
 def trigger_processing():
+    """
+    Запуск обработки PDF-файлов
+    ---
+    parameters:
+      - name: sity
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            sity:
+              type: string
+    responses:
+      200:
+        description: Результат обработки PDF-файлов
+    """
     data = request.get_json()
     sity = data.get("sity")
     logging.info(f"➡️ Запрос на обработку города: {sity}")
@@ -123,6 +142,33 @@ def trigger_processing():
 
 @app.route("/xlsx-list", methods=["GET"])
 def list_xlsx_files():
+    """
+    Получение списка Excel-файлов по городу
+    ---
+    tags:
+      - Excel
+    parameters:
+      - name: sity
+        in: query
+        type: string
+        required: true
+        description: Название города (например, Moscow)
+    responses:
+      200:
+        description: Список найденных .xlsx файлов
+        schema:
+          type: object
+          properties:
+            files:
+              type: array
+              items:
+                type: string
+              example: ["00001.xlsx", "00002.xlsx"]
+      400:
+        description: Неверный или отсутствующий город
+      500:
+        description: Внутренняя ошибка сервера
+    """
     sity = request.args.get("sity")
 
     if not sity or sity not in SITY:
@@ -155,6 +201,26 @@ def list_xlsx_files():
 
 @app.route("/download-xlsx", methods=["POST"])
 def download_xlsx_files():
+    """
+    Скачивание ZIP с Excel-файлами
+    ---
+    parameters:
+      - name: sity
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            sity:
+              type: string
+            files:
+              type: array
+              items:
+                type: string
+    responses:
+      200:
+        description: ZIP-файл с Excel-документами
+    """
     data = request.get_json()
     sity = data.get("sity")
     files = data.get("files", [])
@@ -195,6 +261,26 @@ def download_xlsx_files():
 
 @app.route("/upload-pdf", methods=["POST"])
 def upload_pdf_files():
+    """
+    Загрузка PDF-файлов
+    ---
+    consumes:
+      - multipart/form-data
+    parameters:
+      - name: sity
+        in: formData
+        type: string
+        required: true
+        description: Город
+      - name: files
+        in: formData
+        type: file
+        required: true
+        description: Один или несколько PDF-файлов
+    responses:
+      200:
+        description: Список успешно и неуспешно загруженных файлов
+    """
     sity = request.form.get("sity")
     files = request.files.getlist("files")
 
