@@ -56,7 +56,7 @@ export default function CityApp() {
     setProcessedFiles([]);
     setDuplicateFiles([]);
     try {
-      const res = await axios.post("http://84.201.135.179:8000/process", { sity: city });
+      const res = await axios.post("http://51.250.91.47:8080/process", { sity: city });
       const data = res.data || {};
       if (typeof data === "object") {
         setMessage(data.status || "✅ Готово");
@@ -80,7 +80,7 @@ export default function CityApp() {
     setXlsxFiles([]);
     setSelectedFiles([]);
     try {
-      const res = await axios.get("http://84.201.135.179:8000/xlsx-list", {
+      const res = await axios.get("http://51.250.91.47:8080/xlsx-list", {
         params: { sity: city },
       });
       setXlsxFiles(res.data.files || []);
@@ -103,7 +103,7 @@ export default function CityApp() {
     try {
       setMessage("📦 Запрос на скачивание отправлен...");
       const response = await axios.post(
-        "http://84.201.135.179:8000/download-xlsx",
+        "http://51.250.91.47:8080/download-xlsx",
         {
           sity: city,
           files: selectedFiles,
@@ -138,7 +138,7 @@ export default function CityApp() {
 
     try {
       setMessage("📤 Загрузка PDF-файлов...");
-      const res = await axios.post("http://84.201.135.179:8000/upload-pdf", formData);
+      const res = await axios.post("http://51.250.91.47:8080/upload-pdf", formData);
       const data = res.data;
       const uploaded = data.uploaded || [];
       const failed = data.failed || [];

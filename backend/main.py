@@ -90,9 +90,6 @@ def process_city(sity: str) -> tuple[str, list[str], list[str]]:
         if item["type"] == "file" and item["name"].lower().endswith(".pdf"):
             filename = item["name"]
             name = os.path.splitext(filename)[0]
-            if len(name) != 5:
-                logging.error(f"Имя файла не длины 5: /{sity}/{name}.pdf")
-                continue
             logging.info(f"Обработка файла: /{sity}/{name}.pdf")
             pdf_folder, duplicate = check_duplicates(sity, name)
             if duplicate:
@@ -300,7 +297,7 @@ def upload_pdf_files():
 
     for file in files:
         filename = file.filename
-        if not filename.lower().endswith(".pdf") or len(os.path.splitext(filename)[0]) != 5:
+        if not filename.lower().endswith(".pdf"):
             failed.append(filename)
             continue
 
@@ -326,4 +323,4 @@ def upload_pdf_files():
     })
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+    app.run(host="0.0.0.0", port=8080)
