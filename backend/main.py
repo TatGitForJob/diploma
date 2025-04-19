@@ -61,10 +61,10 @@ def check_duplicates(sity, name):
         if y.exists(xlsx_file):
             logging.info(f"Дубликат Excel-файла на диске: {xlsx_file}")
             y.remove(xlsx_file, permanently=True)
-        xlsx_done_file = f"{sity}_xlsx/done/{name}.xlsx"
-        if y.exists(xlsx_done_file):
-            logging.info(f"Дубликат Excel-файла на диске в выгруженных: {xlsx_done_file}")
-            y.remove(xlsx_done_file, permanently=True)
+        xlsx_downloader_file = f"{sity}_xlsx/downloaded/{name}.xlsx"
+        if y.exists(xlsx_downloader_file):
+            logging.info(f"Дубликат Excel-файла на диске в выгруженных: {xlsx_downloader_file}")
+            y.remove(xlsx_downloader_file, permanently=True)
         return pdf_folder, True
 
     return pdf_folder, False
@@ -259,13 +259,13 @@ def download_xlsx_files():
 
                 try:
                     y.download(remote_path, local_path)
-                    done_folder = f"{remote_folder}/done"
-                    if not y.exists(done_folder):
-                        y.mkdir(done_folder)
-                    done_filename = f"{done_folder}/{filename}"
-                    if y.exists(done_filename):
-                        y.remove(done_filename, permanently=True)
-                    y.move(remote_path, done_filename)
+                    downloaded_folder = f"{remote_folder}/downloaded"
+                    if not y.exists(downloaded_folder):
+                        y.mkdir(downloaded_folder)
+                    downloaded_filename = f"{downloaded_folder}/{filename}"
+                    if y.exists(downloaded_filename):
+                        y.remove(downloaded_filename, permanently=True)
+                    y.move(remote_path, downloaded_filename)
                     zipf.write(local_path, arcname=filename)
                 except Exception as e:
                     logging.error(f"Ошибка при скачивании {filename}: {e}")
@@ -320,6 +320,72 @@ def upload_pdf_files():
     for file in files:
         filename = file.filename
         if not filename.lower().endswith(".pdf"):
+            failed.append(filename)
+            continue
+
+        logging.info(f"Начата Загрузка файла: {filename}")
+        try:
+            temp_path = os.path.join(tempfile.gettempdir(), filename)
+            file.save(temp_path)
+            remote_filepath = f"{folder_path}/{filename}"
+            if y.exists(remote_filepath):
+                logging.info(f"Дубликат файла: {filename}")
+                y.remove(remote_filepath, permanently=True)
+            y.upload(temp_path, remote_filepath)
+            logging.info(f"Загружен файл: {filename}")
+            success.append(filename)
+        except Exception as e:
+            logging.error(f"Ошибка при загрузке {filename}: {e}")
+            failed.append(filename)
+
+    return jsonify({
+        "uploaded": success,
+        "failed": failed,
+        "status": f"Загружено: {len(success)}, Ошибки: {len(failed)}"
+    })
+
+@app.route("/upload-excel", methods=["POST"])
+def upload_pdf_files():
+    """
+    Загрузка Excel-файлов
+    ---
+    consumes:
+      - multipart/form-data
+    parameters:
+      - name: sity
+        in: formData
+        type: string
+        required: true
+        description: Город
+      - name: files
+        in: formData
+        type: file
+        required: true
+        description: Один или несколько Excel-файлов
+    responses:
+      200:
+        description: Список успешно и неуспешно загруженных файлов
+    """
+    sity = request.form.get("sity")
+    files = request.files.getlist("files")
+
+    if not sity or sity not in SITY:
+        logging.error(f"Неверный или отсутствующий город: {sity}")
+        return jsonify({"error": "Неверный или отсутствующий город"}), 400
+
+    if not files:
+        logging.error("Нет файлов в запросе")
+        return jsonify({"error": "Нет файлов для загрузки"}), 400
+
+    folder_path = f"/{sity}_xlsx/verified"
+    if not y.exists(folder_path):
+        y.mkdir(folder_path)
+
+    success, failed = [], []
+
+    for file in files:
+        filename = file.filename
+        if not filename.lower().endswith(".xlsx"):
             failed.append(filename)
             continue
 
