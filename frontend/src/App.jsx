@@ -17,9 +17,20 @@ export default function CityApp() {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [processedFiles, setProcessedFiles] = useState([]);
   const [duplicateFiles, setDuplicateFiles] = useState([]);
+  const [failedFiles, setFailedFiles] = useState([]);
   const [uploadedPdfs, setUploadedPdfs] = useState([]);
   const [failedPdfs, setFailedPdfs] = useState([]);
   const fileInputRef = useRef(null);
+
+  const resetAll = () => {
+    setUploadedPdfs([]);
+    setFailedPdfs([]);
+    setProcessedFiles([]);
+    setDuplicateFiles([]);
+    setXlsxFiles([]);
+    setSelectedFiles([]);
+    setFailedFiles([]);
+  };
 
   useEffect(() => {
     const storedCity = localStorage.getItem("authCity");
@@ -45,23 +56,20 @@ export default function CityApp() {
     setPassword("");
     setStep(1);
     setMessage("");
-    setXlsxFiles([]);
-    setSelectedFiles([]);
-    setProcessedFiles([]);
-    setDuplicateFiles([]);
+    resetAll()
   };
   const handleProcess = async () => {
     setLoading(true);
     setMessage("⏳ Обработка PDF запущена...");
-    setProcessedFiles([]);
-    setDuplicateFiles([]);
+    resetAll()
     try {
-      const res = await axios.post("http://51.250.91.47:8080/process", { sity: city });
+      const res = await axios.post("http://51.250.8.183:8080/process-pdf", { sity: city });
       const data = res.data || {};
       if (typeof data === "object") {
         setMessage(data.status || "✅ Готово");
         setProcessedFiles(Array.isArray(data.processed) ? data.processed : []);
         setDuplicateFiles(Array.isArray(data.duplicates) ? data.duplicates : []);
+        setFailedFiles(Array.isArray(data.failed) ? data.failed.map(f => `${f.name}: ${f.error}`) : []);
       } else {
         setMessage("⚠️ Некорректный ответ от сервера");
       }
@@ -73,14 +81,9 @@ export default function CityApp() {
   };
   const handleFetchXlsxFiles = async () => {
     setMessage("⏳ Поиск Excel запущен...");
-    setUploadedPdfs([]);
-    setFailedPdfs([]);
-    setProcessedFiles([]);
-    setDuplicateFiles([]);
-    setXlsxFiles([]);
-    setSelectedFiles([]);
+    resetAll()
     try {
-      const res = await axios.get("http://51.250.91.47:8080/xlsx-list", {
+      const res = await axios.get("http://51.250.8.183:8080/xlsx-list", {
         params: { sity: city },
       });
       setXlsxFiles(res.data.files || []);
@@ -95,7 +98,7 @@ export default function CityApp() {
     );
   };
   const handleDownloadSelected = async () => {
-    setSelectedFiles([]);
+    resetAll()
     if (selectedFiles.length === 0) {
       setMessage("⚠️ Сначала выберите файлы");
       return;
@@ -103,7 +106,7 @@ export default function CityApp() {
     try {
       setMessage("📦 Запрос на скачивание отправлен...");
       const response = await axios.post(
-        "http://51.250.91.47:8080/download-xlsx",
+        "http://51.250.8.183:8080/download-xlsx",
         {
           sity: city,
           files: selectedFiles,
@@ -125,8 +128,7 @@ export default function CityApp() {
     }
   };
   const handlePdfUpload = async (event) => {
-    setUploadedPdfs([]);
-    setFailedPdfs([]);
+    resetAll()
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
@@ -138,7 +140,7 @@ export default function CityApp() {
 
     try {
       setMessage("📤 Загрузка PDF-файлов...");
-      const res = await axios.post("http://51.250.91.47:8080/upload-pdf", formData);
+      const res = await axios.post("http://51.250.8.183:8080/upload-pdf", formData);
       const data = res.data;
       const uploaded = data.uploaded || [];
       const failed = data.failed || [];
@@ -226,6 +228,9 @@ export default function CityApp() {
             )}
             {duplicateFiles.length > 0 && (
               <FileList title="Дубликаты PDF" files={duplicateFiles} className="brown-title" clickable={false} />
+            )}
+            {failedFiles.length > 0 && (
+              <FileList title="Ошибки обработки PDF" files={failedFiles} className="red-title" clickable={false} />
             )}
             {xlsxFiles.length > 0 && (
               <div>

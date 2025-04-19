@@ -12,6 +12,7 @@ sudo apt-get install python3-venv
 
 
 source venv/bin/activate
+cd backend
 source .env
 nohup python3 main.py > log.txt 2>&1
 localhost:8080/apidocs/

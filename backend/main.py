@@ -61,15 +61,23 @@ def check_duplicates(sity, name):
         if y.exists(xlsx_file):
             logging.info(f"Дубликат Excel-файла на диске: {xlsx_file}")
             y.remove(xlsx_file, permanently=True)
+        xlsx_done_file = f"{sity}_xlsx/done/{name}.xlsx"
+        if y.exists(xlsx_done_file):
+            logging.info(f"Дубликат Excel-файла на диске в выгруженных: {xlsx_done_file}")
+            y.remove(xlsx_done_file, permanently=True)
         return pdf_folder, True
 
     return pdf_folder, False
 
 def run_async_process_pdf(sity, name, pdf_folder, xlsx_folder):
     import pdf_processor as pdf
-    asyncio.run(pdf.process_pdf(sity, name, pdf_folder, xlsx_folder))
+    try:
+        asyncio.run(pdf.process_pdf(sity, name, pdf_folder, xlsx_folder))
+        return { "name": name, "status": "success" }
+    except Exception as e:
+        return { "name": name, "status": "error", "error": str(e) }
 
-def process_city(sity: str) -> tuple[str, list[str], list[str]]:
+def process_city(sity: str) -> tuple[str, list[str], list[str], list[str]]:
     if sity not in SITY:
         return f"Город не из списка: {SITY}", [],[]
 
@@ -85,6 +93,7 @@ def process_city(sity: str) -> tuple[str, list[str], list[str]]:
     tasks = []
     duplicates = []
     processed = []
+    failed_tasks = []
 
     for item in y.listdir(folder_path):
         if item["type"] == "file" and item["name"].lower().endswith(".pdf"):
@@ -93,20 +102,27 @@ def process_city(sity: str) -> tuple[str, list[str], list[str]]:
             logging.info(f"Обработка файла: /{sity}/{name}.pdf")
             pdf_folder, duplicate = check_duplicates(sity, name)
             if duplicate:
-                duplicates.append(pdf_folder)
-            else:
-                processed.append(pdf_folder)
+                duplicates.append(name)
             tasks.append((sity, name, pdf_folder, xlsx_folder))
 
     if not tasks:
         return "Нет файлов для обработки.", [], []
 
+    results = []
     with Pool(cpu_count()) as pool:
-        pool.starmap(run_async_process_pdf, tasks)
+        results = pool.starmap(run_async_process_pdf, tasks)
 
-    return "Файлы обработаны", processed, duplicates
+    for res in results:
+        if res["status"] == "success":
+            processed.append(res["name"])
+        else:
+            err = { "name": res["name"], "error": res["error"] }
+            logging.error("Ошибка при процессинге pdf: ",str(err))
+            failed_tasks.append(err)
 
-@app.route("/process", methods=["POST"])
+    return "Файлы обработаны", processed, duplicates, failed_tasks
+
+@app.route("/process-pdf", methods=["POST"])
 def trigger_processing():
     """
     Запуск обработки PDF-файлов
@@ -129,10 +145,16 @@ def trigger_processing():
     logging.info(f"➡️ Запрос на обработку города: {sity}")
     try:
         start = time.time()
-        status, processed, duplicates = process_city(sity)
+        status, processed, duplicates, failed = process_city(sity)
         duration = time.time() - start
         logging.info("Успешный запрос процессинга")
-        return jsonify({"status": status, "processed": processed, "duplicates": duplicates, "duration_sec": round(duration, 2)})
+        return jsonify({
+            "status": status,
+            "processed": processed,
+            "duplicates": duplicates,
+            "failed": failed,
+            "duration_sec": round(duration, 2)
+        })
     except Exception as e:
         logging.error(f"Что-то пошло не так, error: {str(e)}")
         return jsonify({"status": "Что-то пошло не так", "error": str(e)}), 500
