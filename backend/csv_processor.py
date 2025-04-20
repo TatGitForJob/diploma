@@ -37,8 +37,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# --- Yandex Disk client ---
-y = yadisk.YaDisk(token=os.getenv(CONFIG['yandex']['token_env']))
+y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
 
 def upload_to_yandex(local_path):
     """Upload a file and make it public."""

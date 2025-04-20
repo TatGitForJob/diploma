@@ -345,7 +345,7 @@ def upload_pdf_files():
     })
 
 @app.route("/upload-excel", methods=["POST"])
-def upload_pdf_files():
+def upload_xlsx_files():
     """
     Загрузка Excel-файлов
     ---

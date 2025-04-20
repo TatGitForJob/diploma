@@ -20,11 +20,16 @@ export default function CityApp() {
   const [failedFiles, setFailedFiles] = useState([]);
   const [uploadedPdfs, setUploadedPdfs] = useState([]);
   const [failedPdfs, setFailedPdfs] = useState([]);
+  const [uploadedXlsx, setUploadedXlsx] = useState([]);
+  const [failedXlsx, setFailedXlsx] = useState([]);
   const fileInputRef = useRef(null);
+  const excelInputRef = useRef(null);
 
   const resetAll = () => {
     setUploadedPdfs([]);
     setFailedPdfs([]);
+    setUploadedXlsx([]);
+    setFailedXlsx([]);
     setProcessedFiles([]);
     setDuplicateFiles([]);
     setXlsxFiles([]);
@@ -155,6 +160,34 @@ export default function CityApp() {
 
     event.target.value = null;
   };
+  const handleExcelUpload = async (event) => {
+    resetAll();
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+  
+    const formData = new FormData();
+    formData.append("sity", city);
+    for (let file of files) {
+      formData.append("files", file);
+    }
+  
+    try {
+      setMessage("📤 Загрузка Excel-файлов...");
+      const res = await axios.post("http://51.250.8.183:8080/upload-excel", formData);
+      const data = res.data;
+      const uploaded = data.uploaded || [];
+      const failed = data.failed || [];
+  
+      setUploadedPdfs(uploaded);
+      setFailedPdfs(failed);
+      setMessage(`✅ Загружено: ${uploaded.length}, ❌ Ошибки: ${failed.length}`);
+    } catch (err) {
+      console.error(err);
+      setMessage("❌ Ошибка при загрузке Excel-файлов");
+    }
+  
+    event.target.value = null;
+  };  
   return (
     <div className="page">
       {step === 1 && (
@@ -209,6 +242,17 @@ export default function CityApp() {
             <button onClick={handleDownloadSelected} className="btn">
               Скачать Excel
             </button>
+            <button onClick={() => excelInputRef.current.click()} className="btn">
+              Загрузить проверенный Excel
+            </button>
+            <input
+              type="file"
+              accept=".xlsx"
+              multiple
+              style={{ display: "none" }}
+              ref={excelInputRef}
+              onChange={handleExcelUpload}
+            />
             <button onClick={handleLogout} className="btn danger">
               Выйти
             </button>
@@ -231,6 +275,12 @@ export default function CityApp() {
             )}
             {failedFiles.length > 0 && (
               <FileList title="Ошибки обработки PDF" files={failedFiles} className="red-title" clickable={false} />
+            )}
+            {uploadedXlsx.length > 0 && (
+              <FileList title="Загруженные Excel" files={uploadedXlsx} className="green-title" clickable={false} />
+            )}
+            {failedXlsx.length > 0 && (
+              <FileList title="Не загруженные Excel" files={failedXlsx} className="brown-title" clickable={false} />
             )}
             {xlsxFiles.length > 0 && (
               <div>
