@@ -38,7 +38,7 @@ source ../.env
 python -m ensurepip --upgrade
 pip install --upgrade pip
 # Установка необходимых библиотек
-pip install PyMuPDF openpyxl pillow PyPDF2 yadisk requests flask flask_cors
+pip install PyMuPDF openpyxl pillow PyPDF2 yadisk requests flask flask_cors pandas
 
 echo "Настройка завершена! Для активации окружения в будущем выполните: source $ACTIVATE_SCRIPT"
 

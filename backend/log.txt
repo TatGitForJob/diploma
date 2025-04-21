@@ -1,0 +1,60 @@
+nohup: ignoring input
+ * Tip: There are .env files present. Install python-dotenv to use them.
+ * Serving Flask app 'Diploma'
+ * Debug mode: off
+2025-04-21 16:08:42,448 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8080
+ * Running on http://10.128.0.33:8080
+2025-04-21 16:08:42,448 [INFO] [33mPress CTRL+C to quit[0m
+2025-04-21 16:08:48,147 [INFO] 37.1.207.146 - - [21/Apr/2025 16:08:48] "OPTIONS /process-excel HTTP/1.1" 200 -
+2025-04-21 16:08:48,711 [INFO] ➡️ Запрос на обработку города: Moscow
+2025-04-21 16:08:52,876 [INFO] Обработка файла: /Moscow_xlsx/verified/72875.xlsx
+2025-04-21 16:08:55,120 [INFO] Processing site 72875
+2025-04-21 16:08:56,717 [ERROR] Error processing 72875: 'Фамилия'
+Traceback (most recent call last):
+  File "/home/shamil/diploma/venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 3805, in get_loc
+    return self._engine.get_loc(casted_key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "index.pyx", line 167, in pandas._libs.index.IndexEngine.get_loc
+  File "index.pyx", line 196, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7081, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7089, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: 'Фамилия'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/shamil/diploma/backend/csv_processor.py", line 125, in process_csv
+    df_site = fill_missing_identifiers(df_site, CONFIG['codeword'])
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/shamil/diploma/backend/csv_processor.py", line 70, in fill_missing_identifiers
+    df[col] = df[col].fillna(codeword).replace('', codeword)
+              ~~^^^^^
+  File "/home/shamil/diploma/venv/lib/python3.12/site-packages/pandas/core/frame.py", line 4102, in __getitem__
+    indexer = self.columns.get_loc(key)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/shamil/diploma/venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 3812, in get_loc
+    raise KeyError(key) from err
+KeyError: 'Фамилия'
+2025-04-21 16:08:56,721 [INFO] Done. Missing grades for: []
+2025-04-21 16:08:56,730 [INFO] Успешный запрос процессинга
+2025-04-21 16:08:56,732 [INFO] 37.1.207.146 - - [21/Apr/2025 16:08:56] "POST /process-excel HTTP/1.1" 200 -
+2025-04-21 16:10:43,680 [INFO] 37.1.207.146 - - [21/Apr/2025 16:10:43] "GET /csv-list?sity=Moscow HTTP/1.1" 200 -
+2025-04-21 16:10:47,689 [INFO] 37.1.207.146 - - [21/Apr/2025 16:10:47] "OPTIONS /download-csv HTTP/1.1" 200 -
+2025-04-21 16:10:54,974 [INFO] ✅ Добавлено в архив: aaaaa.csv
+2025-04-21 16:10:56,662 [INFO] ✅ Добавлено в архив: aaaaa.zip
+2025-04-21 16:10:56,663 [INFO] 37.1.207.146 - - [21/Apr/2025 16:10:56] "POST /download-csv HTTP/1.1" 200 -
+2025-04-21 16:12:37,891 [INFO] 37.1.207.146 - - [21/Apr/2025 16:12:37] "GET /csv-list?sity=Moscow HTTP/1.1" 200 -
+2025-04-21 16:12:40,294 [ERROR] 35.216.240.172 - - [21/Apr/2025 16:12:40] code 400, message Bad request version ('À\x13À')
+2025-04-21 16:12:40,294 [INFO] 35.216.240.172 - - [21/Apr/2025 16:12:40] "[31m[1m\x16\x03\x01\x00î\x01\x00\x00ê\x03\x030DÝc²¿\x91Hî¬i\x1eÖ\x04åä\\K\x13$K¿ó\x94-y\x85^\x08ùXB ¿4\x94\x8c\x98õ\x10ò5`@Å\x97\x82ãSFÆ\x02Þ[Ä\x85C³\x99\\8\x1cP¤\x19\x00&À+À/À,À0Ì©Ì¨À\x09À\x13À[0m" 400 -
+2025-04-21 16:12:40,434 [INFO] 35.216.240.172 - - [21/Apr/2025 16:12:40] "[33mGET / HTTP/1.1[0m" 404 -
+2025-04-21 16:12:40,550 [INFO] 35.216.240.172 - - [21/Apr/2025 16:12:40] "[33mGET / HTTP/1.1[0m" 404 -
+2025-04-21 16:12:40,666 [INFO] 35.216.240.172 - - [21/Apr/2025 16:12:40] "[33mGET /.git/config HTTP/1.1[0m" 404 -
+2025-04-21 16:12:40,783 [INFO] 35.216.240.172 - - [21/Apr/2025 16:12:40] "[33mGET /server-status HTTP/1.1[0m" 404 -
+2025-04-21 16:12:40,899 [INFO] 35.216.240.172 - - [21/Apr/2025 16:12:40] "[33mGET /config.json HTTP/1.1[0m" 404 -
+2025-04-21 16:12:41,014 [INFO] 35.216.240.172 - - [21/Apr/2025 16:12:41] "[33mGET /.env HTTP/1.1[0m" 404 -
+2025-04-21 16:12:41,128 [INFO] 35.216.240.172 - - [21/Apr/2025 16:12:41] "[33mGET /telescope/requests HTTP/1.1[0m" 404 -
+2025-04-21 16:12:41,243 [INFO] 35.216.240.172 - - [21/Apr/2025 16:12:41] "[33mGET /info.php HTTP/1.1[0m" 404 -
+2025-04-21 16:12:41,696 [INFO] 35.216.157.14 - - [21/Apr/2025 16:12:41] "[33mGET / HTTP/1.1[0m" 404 -
+2025-04-21 16:15:37,695 [INFO] 37.1.207.146 - - [21/Apr/2025 16:15:37] "GET /csv-list?sity=Moscow HTTP/1.1" 200 -

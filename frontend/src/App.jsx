@@ -13,28 +13,44 @@ export default function CityApp() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const pdfInputRef = useRef(null);
+  const [uploadedPdf, setUploadedPdf] = useState([]);
+  const [failedUploadedPdf, setFailedUploadedPdf] = useState([]);
+
+  const [processedPdf, setProcessedPdf] = useState([]);
+  const [duplicatePdf, setDuplicatePdf] = useState([]);
+  const [failedPdf, setFailedPdf] = useState([]);
+
   const [xlsxFiles, setXlsxFiles] = useState([]);
-  const [selectedFiles, setSelectedFiles] = useState([]);
-  const [processedFiles, setProcessedFiles] = useState([]);
-  const [duplicateFiles, setDuplicateFiles] = useState([]);
-  const [failedFiles, setFailedFiles] = useState([]);
-  const [uploadedPdfs, setUploadedPdfs] = useState([]);
-  const [failedPdfs, setFailedPdfs] = useState([]);
-  const [uploadedXlsx, setUploadedXlsx] = useState([]);
-  const [failedXlsx, setFailedXlsx] = useState([]);
-  const fileInputRef = useRef(null);
+  const [selectedXlsx, setSelectedXlsx] = useState([]);
+
+
   const excelInputRef = useRef(null);
+  const [uploadedXlsx, setUploadedXlsx] = useState([]);
+  const [failedUploadedXlsx, setFailedUploadedXlsx] = useState([]);
+
+  const [processedCsv, setProcessedCsv] = useState([]);
+  const [duplicateCsv, setDuplicateCsv] = useState([]);
+  const [failedCsv, setFailedCsv] = useState([]);
+  
+  const [csvFiles, setCsvFiles] = useState([]);
+  const [selectedCsv, setSelectedCsv] = useState([]);
 
   const resetAll = () => {
-    setUploadedPdfs([]);
-    setFailedPdfs([]);
-    setUploadedXlsx([]);
-    setFailedXlsx([]);
-    setProcessedFiles([]);
-    setDuplicateFiles([]);
+    setUploadedPdf([]);
+    setFailedUploadedPdf([]);
+    setProcessedPdf([]);
+    setDuplicatePdf([]);
+    setFailedPdf([]);
     setXlsxFiles([]);
-    setSelectedFiles([]);
-    setFailedFiles([]);
+    setSelectedXlsx([]);
+    setUploadedXlsx([]);
+    setFailedUploadedXlsx([]);
+    setProcessedCsv([]);
+    setDuplicateCsv([]);
+    setFailedCsv([]);
+    setCsvFiles([]);
+    setSelectedCsv([]);
   };
 
   useEffect(() => {
@@ -63,75 +79,6 @@ export default function CityApp() {
     setMessage("");
     resetAll()
   };
-  const handleProcess = async () => {
-    setLoading(true);
-    setMessage("⏳ Обработка PDF запущена...");
-    resetAll()
-    try {
-      const res = await axios.post("http://51.250.8.183:8080/process-pdf", { sity: city });
-      const data = res.data || {};
-      if (typeof data === "object") {
-        setMessage(data.status || "✅ Готово");
-        setProcessedFiles(Array.isArray(data.processed) ? data.processed : []);
-        setDuplicateFiles(Array.isArray(data.duplicates) ? data.duplicates : []);
-        setFailedFiles(Array.isArray(data.failed) ? data.failed.map(f => `${f.name}: ${f.error}`) : []);
-      } else {
-        setMessage("⚠️ Некорректный ответ от сервера");
-      }
-    } catch (err) {
-      console.error(err);
-      setMessage("❌ Ошибка при запуске обработки");
-    }
-    setLoading(false);
-  };
-  const handleFetchXlsxFiles = async () => {
-    setMessage("⏳ Поиск Excel запущен...");
-    resetAll()
-    try {
-      const res = await axios.get("http://51.250.8.183:8080/xlsx-list", {
-        params: { sity: city },
-      });
-      setXlsxFiles(res.data.files || []);
-      setMessage(`📄 Найдено файлов: ${res.data.files.length}`);
-    } catch (err) {
-      setMessage("❌ Ошибка при получении списка файлов");
-    }
-  };
-  const handleFileToggle = (filename) => {
-    setSelectedFiles((prev) =>
-      prev.includes(filename) ? prev.filter((f) => f !== filename) : [...prev, filename]
-    );
-  };
-  const handleDownloadSelected = async () => {
-    resetAll()
-    if (selectedFiles.length === 0) {
-      setMessage("⚠️ Сначала выберите файлы");
-      return;
-    }
-    try {
-      setMessage("📦 Запрос на скачивание отправлен...");
-      const response = await axios.post(
-        "http://51.250.8.183:8080/download-xlsx",
-        {
-          sity: city,
-          files: selectedFiles,
-        },
-        { responseType: "blob" }
-      );
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `${city}_selected_files.zip`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      setMessage("✅ Архив получен и загружен");
-    } catch (err) {
-      setMessage("❌ Ошибка при скачивании файлов");
-    }
-  };
   const handlePdfUpload = async (event) => {
     resetAll()
     const files = event.target.files;
@@ -150,8 +97,8 @@ export default function CityApp() {
       const uploaded = data.uploaded || [];
       const failed = data.failed || [];
 
-      setUploadedPdfs(uploaded);
-      setFailedPdfs(failed);
+      setUploadedPdf(uploaded);
+      setFailedUploadedPdf(failed);
       setMessage(`✅ Загружено: ${uploaded.length}, ❌ Ошибки: ${failed.length}`);
     } catch (err) {
       console.error(err);
@@ -178,8 +125,8 @@ export default function CityApp() {
       const uploaded = data.uploaded || [];
       const failed = data.failed || [];
   
-      setUploadedPdfs(uploaded);
-      setFailedPdfs(failed);
+      setUploadedXlsx(uploaded);
+      setFailedUploadedXlsx(failed);
       setMessage(`✅ Загружено: ${uploaded.length}, ❌ Ошибки: ${failed.length}`);
     } catch (err) {
       console.error(err);
@@ -188,6 +135,144 @@ export default function CityApp() {
   
     event.target.value = null;
   };  
+  const handleProcessPdf = async () => {
+    setLoading(true);
+    setMessage("⏳ Обработка PDF запущена...");
+    resetAll()
+    try {
+      const res = await axios.post("http://51.250.8.183:8080/process-pdf", { sity: city });
+      const data = res.data || {};
+      if (typeof data === "object") {
+        setMessage(data.status || "✅ Готово");
+        setProcessedPdf(Array.isArray(data.processed) ? data.processed : []);
+        setDuplicatePdf(Array.isArray(data.duplicates) ? data.duplicates : []);
+        setFailedPdf(Array.isArray(data.failed) ? data.failed.map(f => `${f.name}: ${f.error}`) : []);
+      } else {
+        setMessage("⚠️ Некорректный ответ от сервера");
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage("❌ Ошибка при запуске обработки");
+    }
+    setLoading(false);
+  };
+  const handleProcessExcel = async () => {
+    setLoading(true);
+    setMessage("⏳ Обработка Excel запущена...");
+    resetAll()
+    try {
+      const res = await axios.post("http://51.250.8.183:8080/process-excel", { sity: city });
+      const data = res.data || {};
+      if (typeof data === "object") {
+        setMessage(data.status || "✅ Готово");
+        setProcessedCsv(Array.isArray(data.processed) ? data.processed : []);
+        setDuplicateCsv(Array.isArray(data.duplicates) ? data.duplicates : []);
+        setFailedCsv(Array.isArray(data.failed) ? data.failed.map(f => `${f.name}: ${f.error}`) : []);
+      } else {
+        setMessage("⚠️ Некорректный ответ от сервера");
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage("❌ Ошибка при запуске обработки");
+    }
+    setLoading(false);
+  };
+  const handleFetchXlsxFiles = async () => {
+    setMessage("⏳ Поиск Excel запущен...");
+    resetAll()
+    try {
+      const res = await axios.get("http://51.250.8.183:8080/xlsx-list", {
+        params: { sity: city },
+      });
+      setXlsxFiles(res.data.files || []);
+      setMessage(`📄 Найдено файлов: ${res.data.files.length}`);
+    } catch (err) {
+      setMessage("❌ Ошибка при получении списка файлов");
+    }
+  };
+  const handleFetchCsvFiles = async () => {
+    setMessage("⏳ Поиск обработанных работ запущен...");
+    resetAll()
+    try {
+      const res = await axios.get("http://51.250.8.183:8080/csv-list", {
+        params: { sity: city },
+      });
+      setCsvFiles(res.data.files || []);
+      setMessage(`📄 Найдено файлов: ${res.data.files.length}`);
+    } catch (err) {
+      setMessage("❌ Ошибка при получении списка файлов");
+    }
+  };
+  const handleXlsxToggle = (filename) => {
+    setSelectedXlsx((prev) =>
+      prev.includes(filename) ? prev.filter((f) => f !== filename) : [...prev, filename]
+    );
+  };
+  const handleCsvToggle = (filename) => {
+    setSelectedCsv((prev) =>
+      prev.includes(filename) ? prev.filter((f) => f !== filename) : [...prev, filename]
+    );
+  };
+  const handleDownloadXlsx = async () => {
+    resetAll()
+    if (selectedXlsx.length === 0) {
+      setMessage("⚠️ Сначала выберите файлы");
+      return;
+    }
+    try {
+      setMessage("📦 Запрос на скачивание отправлен...");
+      const response = await axios.post(
+        "http://51.250.8.183:8080/download-xlsx",
+        {
+          sity: city,
+          files: selectedXlsx,
+        },
+        { responseType: "blob" }
+      );
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `${city}_selected_xlsx.zip`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      setMessage("✅ Архив получен и загружен");
+    } catch (err) {
+      setMessage("❌ Ошибка при скачивании файлов");
+    }
+  };
+  const handleDownloadCsv = async () => {
+    resetAll()
+    if (selectedCsv.length === 0) {
+      setMessage("⚠️ Сначала выберите файлы");
+      return;
+    }
+    try {
+      setMessage("📦 Запрос на скачивание отправлен...");
+      const response = await axios.post(
+        "http://51.250.8.183:8080/download-csv",
+        {
+          sity: city,
+          files: selectedCsv,
+        },
+        { responseType: "blob" }
+      );
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `${city}_selected_csv.zip`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      setMessage("✅ Архив получен и загружен");
+    } catch (err) {
+      setMessage("❌ Ошибка при скачивании файлов");
+    }
+  };
   return (
     <div className="page">
       {step === 1 && (
@@ -222,7 +307,7 @@ export default function CityApp() {
           <h2 className="subtitle">🏙️ Город: {city}</h2>
 
           <div className="button-group">
-            <button onClick={() => fileInputRef.current.click()} className="btn">
+            <button onClick={() => pdfInputRef.current.click()} className="btn">
               Загрузить PDF
             </button>
             <input
@@ -230,16 +315,16 @@ export default function CityApp() {
               accept="application/pdf"
               multiple
               style={{ display: "none" }}
-              ref={fileInputRef}
+              ref={pdfInputRef}
               onChange={handlePdfUpload}
             />
-            <button onClick={handleProcess} disabled={loading} className="btn">
-              {loading ? "Обработка..." : "Запустить обработку"}
+            <button onClick={handleProcessPdf} disabled={loading} className="btn">
+              {loading ? "Обработка..." : "Запустить предобработку"}
             </button>
             <button onClick={handleFetchXlsxFiles} className="btn">
               Список Excel-файлов
             </button>
-            <button onClick={handleDownloadSelected} className="btn">
+            <button onClick={handleDownloadXlsx} className="btn">
               Скачать Excel
             </button>
             <button onClick={() => excelInputRef.current.click()} className="btn">
@@ -253,6 +338,15 @@ export default function CityApp() {
               ref={excelInputRef}
               onChange={handleExcelUpload}
             />
+            <button onClick={handleProcessExcel} disabled={loading} className="btn">
+              {loading ? "Обработка..." : "Запустить постобработку"}
+            </button>
+            <button onClick={handleFetchCsvFiles} className="btn">
+              Список Csv-файлов
+            </button>
+            <button onClick={handleDownloadCsv} className="btn">
+              Скачать Csv
+            </button>
             <button onClick={handleLogout} className="btn danger">
               Выйти
             </button>
@@ -261,26 +355,20 @@ export default function CityApp() {
           {message && <p className="info-message">{message}</p>}
 
           <div className="file-columns">
-            {uploadedPdfs.length > 0 && (
-              <FileList title="Загруженные PDF" files={uploadedPdfs} className="green-title" clickable={false} />
+            {uploadedPdf.length > 0 && (
+              <FileList title="Загруженные PDF" files={uploadedPdf} className="green-title" clickable={false} />
             )}
-            {failedPdfs.length > 0 && (
-              <FileList title="Не загруженные PDF" files={failedPdfs} className="brown-title" clickable={false} />
+            {failedUploadedPdf.length > 0 && (
+              <FileList title="Не загруженные PDF" files={failedUploadedPdf} className="brown-title" clickable={false} />
             )}
-            {processedFiles.length > 0 && (
-              <FileList title="Обработанные PDF" files={processedFiles} className="green-title" clickable={false} />
+            {processedPdf.length > 0 && (
+              <FileList title="Обработанные PDF" files={processedPdf} className="green-title" clickable={false} />
             )}
-            {duplicateFiles.length > 0 && (
-              <FileList title="Дубликаты PDF" files={duplicateFiles} className="brown-title" clickable={false} />
+            {duplicatePdf.length > 0 && (
+              <FileList title="Дубликаты PDF" files={duplicatePdf} className="brown-title" clickable={false} />
             )}
-            {failedFiles.length > 0 && (
-              <FileList title="Ошибки обработки PDF" files={failedFiles} className="red-title" clickable={false} />
-            )}
-            {uploadedXlsx.length > 0 && (
-              <FileList title="Загруженные Excel" files={uploadedXlsx} className="green-title" clickable={false} />
-            )}
-            {failedXlsx.length > 0 && (
-              <FileList title="Не загруженные Excel" files={failedXlsx} className="brown-title" clickable={false} />
+            {failedPdf.length > 0 && (
+              <FileList title="Ошибки обработки PDF" files={failedPdf} className="red-title" clickable={false} />
             )}
             {xlsxFiles.length > 0 && (
               <div>
@@ -289,8 +377,39 @@ export default function CityApp() {
                   {xlsxFiles.map((file, i) => (
                     <li
                       key={i}
-                      onClick={() => handleFileToggle(file)}
-                      className={`file-item ${selectedFiles.includes(file) ? "selected" : ""}`}
+                      onClick={() => handleXlsxToggle(file)}
+                      className={`file-item ${selectedXlsx.includes(file) ? "selected" : ""}`}
+                    >
+                      {file}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {uploadedXlsx.length > 0 && (
+              <FileList title="Загруженные Excel" files={uploadedXlsx} className="green-title" clickable={false} />
+            )}
+            {failedUploadedXlsx.length > 0 && (
+              <FileList title="Не загруженные Excel" files={failedUploadedXlsx} className="brown-title" clickable={false} />
+            )}
+            {processedCsv.length > 0 && (
+              <FileList title="Обработанные Excel" files={processedCsv} className="green-title" clickable={false} />
+            )}
+            {duplicateCsv.length > 0 && (
+              <FileList title="Дубликаты Excel" files={duplicateCsv} className="brown-title" clickable={false} />
+            )}
+            {failedCsv.length > 0 && (
+              <FileList title="Ошибки обработки Excel" files={failedCsv} className="red-title" clickable={false} />
+            )}
+            {csvFiles.length > 0 && (
+              <div>
+                <h3 className="blue-title">Файлы Csv</h3>
+                <ul className="file-list">
+                  {csvFiles.map((file, i) => (
+                    <li
+                      key={i}
+                      onClick={() => handleCsvToggle(file)}
+                      className={`file-item ${selectedCsv.includes(file) ? "selected" : ""}`}
                     >
                       {file}
                     </li>

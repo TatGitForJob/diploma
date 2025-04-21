@@ -7,7 +7,14 @@ from PyPDF2 import PdfMerger
 from zipfile import ZipFile
 import yadisk
 
-# --- Configuration ---
+TRANSLIT = {'a':'а','b':'б','c':'ц','d':'д','e':'е','f':'ф','g':'г',
+            'h':'х','i':'и','j':'й','k':'к','l':'л','m':'м','n':'н',
+            'o':'о','p':'п','r':'р','s':'с','t':'т','u':'у','v':'в',
+            'w':'вв','x':'кс','y':'ы','z':'з'}
+NUMS = {'1':'один','2':'два','3':'три','4':'четыре',
+        '5':'пять','6':'шесть','7':'семь',
+        '8':'восемь','9':'девять','0':'ноль'}
+
 CONFIG = {
     'codeword': 'гусь',
     'city_folder': 'москва',
@@ -53,7 +60,6 @@ def upload_to_yandex(local_path):
 async def async_upload(loop, executor, path):
     await loop.run_in_executor(executor, upload_to_yandex, path)
 
-# --- Helpers ---
 def read_global_log(csv_url):
     df = pd.read_csv(csv_url, dtype={'№ площадки': str})
     return df['№ площадки'].tolist()
@@ -104,52 +110,42 @@ def normalize_and_explode(df, translit, nums):
     df['Скан'] = df['id'].astype(str)+'.pdf'
     return df[['ФИО','Орф. ошибки','Пункт. ошибки','Кодовое слово','Скан']]
 
-# --- Main ---
-async def main():
-    logger.info("Starting processing")
-    sites = read_global_log(CONFIG['paths']['log_sheet_csv_url'])
+async def process_csv(sity,site):
     missing = []
     results = {}
     loop = asyncio.get_event_loop()
     executor = ThreadPoolExecutor()
 
-    for site in sites:
-        logger.info(f"Processing site {site}")
-        try:
-            # Simplified: load site-specific df chunk
-            df = pd.read_csv(CONFIG['paths']['log_sheet_csv_url'], dtype={'№ площадки':str})
-            df_site = df[df['№ площадки']==site]
-            df_site = fill_missing_identifiers(df_site, CONFIG['codeword'])
-            if check_missing_errors(df_site):
-                missing.append(site)
-                logger.warning(f"Missing grades for {site}")
-                continue
+    logger.info(f"Processing site {site}")
+    try:
+        # Simplified: load site-specific df chunk
+        df = pd.read_csv(CONFIG['paths']['log_sheet_csv_url'], dtype={'№ площадки':str})
+        df_site = df[df['№ площадки']==site]
+        df_site = fill_missing_identifiers(df_site, CONFIG['codeword'])
+        if check_missing_errors(df_site):
+            missing.append(site)
+            logger.warning(f"Missing grades for {site}")
+            #continue
 
-            merged = merge_duplicate_pdfs(df_site, CONFIG['paths']['submissions_local'])
-            final_df = normalize_and_explode(merged, TRANSLIT, NUMS)
+        merged = merge_duplicate_pdfs(df_site, CONFIG['paths']['submissions_local'])
+        final_df = normalize_and_explode(merged, TRANSLIT, NUMS)
 
-            # Save & upload CSV
-            csv_path = os.path.join(CONFIG['paths']['final_local'], f"{site}.csv")
-            final_df.to_csv(csv_path, sep=';', encoding='cp1251', index=False)
-            await async_upload(loop, executor, csv_path)
+        # Save & upload CSV
+        csv_path = os.path.join(CONFIG['paths']['final_local'], f"{site}.csv")
+        final_df.to_csv(csv_path, sep=';', encoding='cp1251', index=False)
+        await async_upload(loop, executor, csv_path)
 
-            # Save & upload ZIP
-            zip_path = os.path.join(CONFIG['paths']['final_local'], f"{site}.zip")
-            with ZipFile(zip_path, 'w') as zf:
-                for fname in os.listdir(CONFIG['paths']['submissions_local']):
-                    if fname.startswith(site):
-                        zf.write(os.path.join(CONFIG['paths']['submissions_local'], fname), fname)
-            await async_upload(loop, executor, zip_path)
+        # Save & upload ZIP
+        zip_path = os.path.join(CONFIG['paths']['final_local'], f"{site}.zip")
+        with ZipFile(zip_path, 'w') as zf:
+            for fname in os.listdir(CONFIG['paths']['submissions_local']):
+                if fname.startswith(site):
+                    zf.write(os.path.join(CONFIG['paths']['submissions_local'], fname), fname)
+        await async_upload(loop, executor, zip_path)
 
-            results[site] = final_df
-            logger.info(f"Finished site {site}")
-        except Exception as e:
-            logger.error(f"Error processing {site}: {e}", exc_info=True)
+        results[site] = final_df
+        logger.info(f"Finished site {site}")
+    except Exception as e:
+        logger.error(f"Error processing {site}: {e}", exc_info=True)
 
     logger.info(f"Done. Missing grades for: {missing}")
-
-TRANSLIT = {'a':'а','b':'б','c':'ц','d':'д','e':'е','f':'ф','g':'г','h':'х','i':'и','j':'й','k':'к','l':'л','m':'м','n':'н','o':'о','p':'п','r':'р','s':'с','t':'т','u':'у','v':'в','w':'вв','x':'кс','y':'ы','z':'з'}
-NUMS = {'1':'один','2':'два','3':'три','4':'четыре','5':'пять','6':'шесть','7':'семь','8':'восемь','9':'девять','0':'ноль'}
-
-if __name__ == "__main__":
-    asyncio.run(main())
