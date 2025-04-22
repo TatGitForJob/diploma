@@ -107,27 +107,62 @@ def register_routes_csv(app):
         if not sity or not isinstance(files, list) or not files:
             return jsonify({"error": "Некорректные данные запроса"}), 400
         remote_folder = f"/{sity}_csv"
+        done_folder = f"{remote_folder}/done"
+        if not y.exists(done_folder):
+            y.mkdir(done_folder)
         zip_buffer = BytesIO()
         with tempfile.TemporaryDirectory() as tmpdir:
             with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
                 for name in files:
-                    for ext in [".csv", ".zip"]:
-                        filename = f"{name}{ext}"
-                        remote_path = f"{remote_folder}/{filename}"
-                        local_path = os.path.join(tmpdir, filename)
+                    csv_filename = f"{name}.csv"
+                    remote_csv_path = f"{remote_folder}/{csv_filename}"
+                    local_csv_path = os.path.join(tmpdir, csv_filename)
+                    done_csv_path = f"{done_folder}/{csv_filename}"
+                    try:
+                        y.download(remote_csv_path, local_csv_path)
+                        if y.exists(done_csv_path):
+                            y.remove(done_csv_path, permanently=True)
 
-                        try:
-                            y.download(remote_path, local_path)
-                            done_folder = f"{remote_folder}/done"
-                            if not y.exists(done_folder):
-                                y.mkdir(done_folder)
-                            done_path = f"{done_folder}/{filename}"
-                            if y.exists(done_path):
-                                y.remove(done_path, permanently=True)
-                            y.move(remote_path, done_path)
-                            zipf.write(local_path, arcname=filename)
-                        except Exception as e:
-                            logging.error(f"❌ Ошибка при скачивании {filename}: {e}")
+                        zipf.write(local_csv_path, arcname=csv_filename)
+                        logging.info(f"✅ CSV добавлен в архив: {csv_filename}")
+                    except Exception as e:
+                        logging.error(f"❌ Ошибка при скачивании CSV: {csv_filename}: {e}")
+
+                    remote_pdf_folder = f"{remote_folder}/{name}"
+                    pdf_zip_filename = f"{name}.zip"
+                    local_pdf_zip = f"{sity}_csv/{name}.zip"
+                    extracted_folder = f"{sity}_csv/{name}"
+
+                    try:
+                        y.download(remote_pdf_folder, local_pdf_zip)
+
+                        # Распаковка в папку
+                        with zipfile.ZipFile(local_pdf_zip, 'r') as zip_ref:
+                            zip_ref.extractall(extracted_folder)
+
+                        # Удаляем оригинальный zip после распаковки
+                        os.remove(local_pdf_zip)
+
+                        # Собираем без вложенности в новый zip
+                        with zipfile.ZipFile(local_pdf_zip, 'w', zipfile.ZIP_DEFLATED) as temp_zip:
+                            for root, dirs, files in os.walk(extracted_folder):
+                                for file in files:
+                                    file_path = os.path.join(root, file)
+                                    arcname = f"{file}"  # без вложенности
+                                    temp_zip.write(file_path, arcname=arcname)
+
+                        done_pdf_folder = f"{done_folder}/{name}"
+                        if y.exists(done_pdf_folder):
+                            y.remove(done_pdf_folder, permanently=True)
+                        y.move(remote_pdf_folder, done_pdf_folder)
+                        y.move(remote_csv_path, done_csv_path)
+
+                        # Добавляем этот архив в общий архив на отправку
+                        zipf.write(local_pdf_zip, arcname=pdf_zip_filename)
+                        logging.info(f"✅ PDF-файлы добавлены как {pdf_zip_filename}")
+
+                    except Exception as e:
+                        logging.error(f"❌ Ошибка при обработке PDF-папки {name}: {e}")
 
         zip_buffer.seek(0)
         return send_file(
@@ -136,8 +171,6 @@ def register_routes_csv(app):
             as_attachment=True,
             download_name=f"{sity}_csv_selected.zip"
         )
-
-# Вспомогательные функции
 
 def makedirs(sity):
     pdf_folder = f"{sity}_pdf"

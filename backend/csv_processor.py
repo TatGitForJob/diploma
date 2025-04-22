@@ -25,13 +25,13 @@ CITY_CODEWORDS = {
 y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
 
 def download_and_extract_folder_as_zip(sity, site):
-    remote_folder = f"/{sity}_pdf/{site}"
-    local_folder = f"./{sity}_pdf/"
-    local_zip = f"{local_folder}.zip"
+    remote_folder = f"{sity}_pdf/{site}"
+    local_folder = f"{sity}_pdf/"
+    local_zip = f"{site}.zip"
 
-    if os.path.exists(local_folder):
-        shutil.rmtree(local_folder)
-    os.makedirs(local_folder, exist_ok=True)
+    if os.path.exists(remote_folder):
+        shutil.rmtree(remote_folder)
+    os.makedirs(remote_folder, exist_ok=True)
 
     try:
         y.download(remote_folder, local_zip)
@@ -65,7 +65,7 @@ def merge_duplicate_pdfs(df, pdf_folder, log,site):
             os.remove(src)
             parts.extend(fid.split('_')[1].split('.')[0])
         new_name = "_".join(parts)
-        dest = os.path.join(pdf_folder, new_name)
+        dest = os.path.join(pdf_folder, f"{new_name}.pdf")
         merger.write(dest)
         merger.close()
         merged.append((grp.index[0], new_name, *key,
@@ -110,6 +110,7 @@ async def process_csv(sity, site):
     logs = []
 
     try:
+        start_time = time.time()
         codeword = CITY_CODEWORDS.get(sity)
         pdf_folder = download_and_extract_folder_as_zip(sity, site)
         xlsx_file = f"{sity}_xlsx/verified/{site}.xlsx"
@@ -121,6 +122,7 @@ async def process_csv(sity, site):
             raise FileNotFoundError(f"Не удалось скачать Excel с Яндекс.Диска: {e}")
 
         df = pd.read_excel(xlsx_file)
+        df = df.rename(columns={'Орф.\n ошибки' : 'Орф. ошибки', 'Пункт.\n ошибки' : 'Пункт. ошибки'})
         df = fill_missing_identifiers(df, codeword)
         if check_missing_errors(df):
             logs.append(f"⚠️ В {site}.xlsx есть пропуски в колонках ошибок")
@@ -135,30 +137,21 @@ async def process_csv(sity, site):
 
         os.makedirs(f"./{sity}_csv", exist_ok=True)
         csv_path = f"{sity}_csv/{site}.csv"
-        zip_path = f"{sity}_csv/{site}.zip"
-
         final_df.to_csv(csv_path, sep=';', encoding='cp1251', index=False)
-        with ZipFile(zip_path, 'w') as zf:
-            for fname in os.listdir(pdf_folder):
-                full_path = os.path.join(pdf_folder, fname)
-                zf.write(full_path, arcname=fname)
-
         fire_and_forget_upload(csv_path)
-        fire_and_forget_upload(zip_path)
-        time.sleep(1)
-        count = 0
-        for i in range(300):
-            if y.exists(zip_path):
-                count = i
-                break
-            time.sleep(1)
-        if not y.exists(zip_path):
-            logs.append(f"❌ Файл не найден после 100 секунд: {zip_path}")
-            logging.error(logs)
-            return { "status": "error", "name": site, "logs": logs }
-        else:
-            logs.append(f"✅ Успешно обработан: {site} за {count} секунд")
-            logging.info(logs)
+        remote_pdf_folder = f"{sity}_csv/{site}"
+        if y.exists(remote_pdf_folder):
+            y.remove(remote_pdf_folder, permanently=True)
+        y.mkdir(remote_pdf_folder)
+
+        # Копируем PDF-файлы из локальной папки
+        for fname in os.listdir(pdf_folder):
+            full_path = os.path.join(pdf_folder, fname)
+            remote_path = f"{remote_pdf_folder}/{fname}"
+            y.upload(full_path, remote_path)
+
+        logs.append(f"✅ Успешно обработан: {site} за {time.time()-start_time} секунд")
+        logging.info(logs)
 
         done_folder = f"{sity}_xlsx/done"
         if not y.exists(done_folder):
