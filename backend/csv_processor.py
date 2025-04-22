@@ -100,6 +100,7 @@ def fire_and_forget_upload(path):
         try:
             if y.exists(path):
                 y.remove(path, permanently=True)
+                time.sleep(1)
             y.upload(path, path)
         except Exception as e:
             logging.warning(f"Фоновая загрузка не удалась: {e}")

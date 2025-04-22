@@ -39,6 +39,7 @@ def register_routes_csv(app):
                 remote_filepath = f"{folder_path}/{filename}"
                 if y.exists(remote_filepath):
                     y.remove(remote_filepath, permanently=True)
+                    time.sleep(1)
                 y.upload(temp_path, remote_filepath)
                 success.append(filename)
             except Exception as e:
