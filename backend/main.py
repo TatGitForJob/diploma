@@ -8,7 +8,7 @@ from handlers_pdf import register_routes_pdf
 from handlers_csv import register_routes_csv
 
 app = Flask("Diploma")
-CORS(app)
+CORS(app, expose_headers=["X-Result-Json"])
 from flasgger import Swagger
 swagger = Swagger(app)
 

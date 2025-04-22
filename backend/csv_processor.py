@@ -1,8 +1,10 @@
+
 import os
+import threading
 import logging
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
+import time
 import pandas as pd
+import shutil
 from PyPDF2 import PdfMerger
 from zipfile import ZipFile
 import yadisk
@@ -15,54 +17,30 @@ NUMS = {'1':'один','2':'два','3':'три','4':'четыре',
         '5':'пять','6':'шесть','7':'семь',
         '8':'восемь','9':'девять','0':'ноль'}
 
-CONFIG = {
-    'codeword': 'гусь',
-    'city_folder': 'москва',
-    'year': '2024',
-    'paths': {
-        'submissions_local': "/content/drive/My Drive/2024/москва/файлы работ/",
-        'log_sheet_csv_url': (
-            "https://docs.google.com/spreadsheets/d/"
-            "1PNK4su_Ie7IQBM-QAx1laKr1XqVjD3cqfObTCQAJGR0/"
-            "export?format=csv&gid=1763744115"
-        ),
-        'final_local': "/content/drive/My Drive/2024/москва/загрузка на сайт"
-    },
-    'yandex': {
-        'token_env': 'YANDEX_TOKEN',
-        'remote_base': '/2024/москва'
-    }
+CITY_CODEWORDS = {
+    "Moscow": "тюлень",
+    "Novosibirsk": "новосибирск"
 }
-
-# --- Logging setup ---
-os.makedirs("logs", exist_ok=True)
-logging.basicConfig(
-    filename="logs/process_sites.log",
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
-)
-logger = logging.getLogger(__name__)
 
 y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
 
-def upload_to_yandex(local_path):
-    """Upload a file and make it public."""
-    remote_path = CONFIG['yandex']['remote_base'] + local_path.replace(":", "").replace("\\", "/")
+def download_and_extract_folder_as_zip(sity, site):
+    remote_folder = f"/{sity}_pdf/{site}"
+    local_folder = f"./{sity}_pdf/"
+    local_zip = f"{local_folder}.zip"
+
+    if os.path.exists(local_folder):
+        shutil.rmtree(local_folder)
+    os.makedirs(local_folder, exist_ok=True)
+
     try:
-        y.upload(local_path, remote_path)
-        y.publish(remote_path)
-        logger.info(f"Uploaded and published: {local_path} -> {remote_path}")
+        y.download(remote_folder, local_zip)
+        with ZipFile(local_zip, 'r') as zip_ref:
+            zip_ref.extractall(local_folder)
+        os.remove(local_zip)
+        return f"{local_folder}{site}"
     except Exception as e:
-        logger.error(f"Failed to upload {local_path}: {e}")
-    return remote_path
-
-async def async_upload(loop, executor, path):
-    await loop.run_in_executor(executor, upload_to_yandex, path)
-
-def read_global_log(csv_url):
-    df = pd.read_csv(csv_url, dtype={'№ площадки': str})
-    return df['№ площадки'].tolist()
+        raise RuntimeError(f"Не удалось скачать и разархивировать PDF: {e}")
 
 def fill_missing_identifiers(df, codeword):
     for col in ['Фамилия', 'Имя', 'Кодовое слово']:
@@ -75,21 +53,24 @@ def check_missing_errors(df):
     has_empty = (df[cols] == '').any().any()
     return has_null or has_empty
 
-def merge_duplicate_pdfs(df, submissions_path):
+def merge_duplicate_pdfs(df, pdf_folder, log,site):
     duplicates = df[df.duplicated(['Фамилия','Имя','Кодовое слово'],keep=False)]
     merged = []
     for key, grp in duplicates.groupby(['Фамилия','Имя','Кодовое слово'],sort=False):
         merger = PdfMerger()
-        parts = []
+        parts = [site]
         for fid in grp['Id работы']:
-            src = os.path.join(submissions_path, f"{fid}.pdf")
+            src = os.path.join(pdf_folder, f"{fid}.pdf")
             merger.append(src)
-            parts.extend(fid.split('_'))
-        new_name = "_".join(parts)+".pdf"
-        dest = os.path.join(submissions_path, new_name)
-        merger.write(dest); merger.close()
+            os.remove(src)
+            parts.extend(fid.split('_')[1].split('.')[0])
+        new_name = "_".join(parts)
+        dest = os.path.join(pdf_folder, new_name)
+        merger.write(dest)
+        merger.close()
         merged.append((grp.index[0], new_name, *key,
                        grp['Орф. ошибки'].iloc[0], grp['Пункт. ошибки'].iloc[0]))
+        log.append(f"🔀 Объединены сканы: {grp['Id работы'].tolist()} → {new_name}")
     merged_df = pd.DataFrame(merged,
         columns=['index','Id работы','Фамилия','Имя','Кодовое слово','Орф. ошибки','Пункт. ошибки'])
     rest = df.drop(duplicates.index).copy()
@@ -97,55 +78,105 @@ def merge_duplicate_pdfs(df, submissions_path):
     rest = rest[['index','Id работы','Фамилия','Имя','Кодовое слово','Орф. ошибки','Пункт. ошибки']]
     return pd.concat([merged_df, rest], ignore_index=True).sort_values('index')
 
-def normalize_and_explode(df, translit, nums):
+def normalize_and_explode(df, translit, nums, log,site):
     df = df.rename(columns={'Id работы':'id'}).reset_index(drop=True)
     for col in ['Фамилия','Имя','Кодовое слово']:
         df[col] = df[col].str.lower().str.split(',')
-    df = df.explode(['Фамилия','Имя','Кодовое слово'])
+    df = df.explode("Фамилия").explode("Имя").explode("Кодовое слово")
     for mapping in (translit, nums):
-        for k,v in mapping.items():
-            df[['Фамилия','Имя','Кодовое слово']] = df[['Фамилия','Имя','Кодовое слово']].replace(k,v,regex=True)
+        for k, v in mapping.items():
+            for col in ['Фамилия', 'Имя', 'Кодовое слово']:
+                before = df[col].copy()
+                df[col] = df[col].replace(k, v, regex=True)
+                if not df[col].equals(before):
+                    log.append(f"🔤 Замена в файле {site} '{col}': {k} → {v}")
     df[['Фамилия','Имя','Кодовое слово']] = df[['Фамилия','Имя','Кодовое слово']].replace('[^ёа-я]','',regex=True)
     df['ФИО'] = df['Фамилия'] + ' ' + df['Имя']
     df['Скан'] = df['id'].astype(str)+'.pdf'
     return df[['ФИО','Орф. ошибки','Пункт. ошибки','Кодовое слово','Скан']]
 
-async def process_csv(sity,site):
-    missing = []
-    results = {}
-    loop = asyncio.get_event_loop()
-    executor = ThreadPoolExecutor()
+def fire_and_forget_upload(path):
+    def upload():
+        try:
+            if y.exists(path):
+                y.remove(path, permanently=True)
+            y.upload(path, path)
+        except Exception as e:
+            logging.warning(f"Фоновая загрузка не удалась: {e}")
 
-    logger.info(f"Processing site {site}")
+    threading.Thread(target=upload).start()
+
+async def process_csv(sity, site):
+    logs = []
+
     try:
-        # Simplified: load site-specific df chunk
-        df = pd.read_csv(CONFIG['paths']['log_sheet_csv_url'], dtype={'№ площадки':str})
-        df_site = df[df['№ площадки']==site]
-        df_site = fill_missing_identifiers(df_site, CONFIG['codeword'])
-        if check_missing_errors(df_site):
-            missing.append(site)
-            logger.warning(f"Missing grades for {site}")
-            #continue
+        codeword = CITY_CODEWORDS.get(sity)
+        pdf_folder = download_and_extract_folder_as_zip(sity, site)
+        xlsx_file = f"{sity}_xlsx/verified/{site}.xlsx"
 
-        merged = merge_duplicate_pdfs(df_site, CONFIG['paths']['submissions_local'])
-        final_df = normalize_and_explode(merged, TRANSLIT, NUMS)
+        os.makedirs(os.path.dirname(xlsx_file), exist_ok=True)
+        try:
+            y.download(xlsx_file, xlsx_file)
+        except Exception as e:
+            raise FileNotFoundError(f"Не удалось скачать Excel с Яндекс.Диска: {e}")
 
-        # Save & upload CSV
-        csv_path = os.path.join(CONFIG['paths']['final_local'], f"{site}.csv")
+        df = pd.read_excel(xlsx_file)
+        df = fill_missing_identifiers(df, codeword)
+        if check_missing_errors(df):
+            logs.append(f"⚠️ В {site}.xlsx есть пропуски в колонках ошибок")
+            return { "status": "skipped","name": site, "logs": logs }
+
+        merged = merge_duplicate_pdfs(df, pdf_folder, logs,site)
+        final_df = normalize_and_explode(merged, TRANSLIT, NUMS, logs,site)
+        final_df = final_df.rename(columns={
+        "Орф. ошибки": "Орфография",
+        "Пункт. ошибки": "Пунктуация"
+        })
+
+        os.makedirs(f"./{sity}_csv", exist_ok=True)
+        csv_path = f"{sity}_csv/{site}.csv"
+        zip_path = f"{sity}_csv/{site}.zip"
+
         final_df.to_csv(csv_path, sep=';', encoding='cp1251', index=False)
-        await async_upload(loop, executor, csv_path)
-
-        # Save & upload ZIP
-        zip_path = os.path.join(CONFIG['paths']['final_local'], f"{site}.zip")
         with ZipFile(zip_path, 'w') as zf:
-            for fname in os.listdir(CONFIG['paths']['submissions_local']):
-                if fname.startswith(site):
-                    zf.write(os.path.join(CONFIG['paths']['submissions_local'], fname), fname)
-        await async_upload(loop, executor, zip_path)
+            for fname in os.listdir(pdf_folder):
+                full_path = os.path.join(pdf_folder, fname)
+                zf.write(full_path, arcname=fname)
 
-        results[site] = final_df
-        logger.info(f"Finished site {site}")
+        fire_and_forget_upload(csv_path)
+        fire_and_forget_upload(zip_path)
+        time.sleep(1)
+        count = 0
+        for i in range(300):
+            if y.exists(zip_path):
+                count = i
+                break
+            time.sleep(1)
+        if not y.exists(zip_path):
+            logs.append(f"❌ Файл не найден после 100 секунд: {zip_path}")
+            logging.error(logs)
+            return { "status": "error", "name": site, "logs": logs }
+        else:
+            logs.append(f"✅ Успешно обработан: {site} за {count} секунд")
+            logging.info(logs)
+
+        done_folder = f"{sity}_xlsx/done"
+        if not y.exists(done_folder):
+            y.mkdir(done_folder)
+        done_path = f"{done_folder}/{site}.xlsx"
+        if y.exists(done_path):
+            y.remove(done_path, permanently=True)
+        y.move(xlsx_file, done_path)
+
+        return {
+            "status": "success",
+            "name": site,
+            "csv_path": f"/{sity}_csv/{site}.csv",
+            "zip_path": f"/{sity}_csv/{site}.zip",
+            "logs": logs
+        }
+
     except Exception as e:
-        logger.error(f"Error processing {site}: {e}", exc_info=True)
-
-    logger.info(f"Done. Missing grades for: {missing}")
+        logging.error(e)
+        logs.append(f"❌ Ошибка при обработке {site}: {str(e)}")
+        return { "status": "error", "name": site, "logs": logs }

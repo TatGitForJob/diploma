@@ -67,6 +67,62 @@ def register_routes_pdf(app):
             logging.error(f"Что-то пошло не так, error: {str(e)}")
             return jsonify({"status": "Что-то пошло не так", "error": str(e)}), 500
 
+    @app.route("/xlsx-list", methods=["GET"])
+    def list_xlsx_files():
+        sity = request.args.get("sity")
+        if not sity or sity not in SITY:
+            logging.warning("Запрос с неверным или отсутствующим городом: %s", sity)
+            return jsonify({"error": "Неверный или отсутствующий город"}), 400
+        folder_path = f"/{sity}_xlsx"
+        try:
+            if not y.exists(folder_path):
+                return jsonify({"files": []})
+            files = y.listdir(folder_path)
+            xlsx_files = sorted(
+                [f for f in files if f["type"] == "file" and f["name"].endswith(".xlsx")],
+                key=lambda f: f["created"],
+                reverse=True
+            )
+            file_names = [f["name"] for f in xlsx_files]
+            return jsonify({"files": file_names})
+        except Exception as e:
+            logging.error(f"Ошибка при получении файлов: {e}")
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/download-xlsx", methods=["POST"])
+    def download_xlsx_files():
+        data = request.get_json()
+        sity = data.get("sity")
+        files = data.get("files", [])
+        if not sity or not isinstance(files, list) or not files:
+            return jsonify({"error": "Некорректные данные запроса"}), 400
+        remote_folder = f"/{sity}_xlsx"
+        zip_buffer = BytesIO()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+                for filename in files:
+                    remote_path = f"{remote_folder}/{filename}"
+                    local_path = os.path.join(tmpdir, filename)
+                    try:
+                        y.download(remote_path, local_path)
+                        downloaded_folder = f"{remote_folder}/downloaded"
+                        if not y.exists(downloaded_folder):
+                            y.mkdir(downloaded_folder)
+                        downloaded_filename = f"{downloaded_folder}/{filename}"
+                        if y.exists(downloaded_filename):
+                            y.remove(downloaded_filename, permanently=True)
+                        y.move(remote_path, downloaded_filename)
+                        zipf.write(local_path, arcname=filename)
+                    except Exception as e:
+                        logging.error(f"Ошибка при скачивании {filename}: {e}")
+        zip_buffer.seek(0)
+        return send_file(
+            zip_buffer,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name=f"{sity}_xlsx_selected.zip"
+        )
+
 
 def makedirs(sity):
     pdf_folder = f"{sity}_pdf"

@@ -159,17 +159,40 @@ export default function CityApp() {
   const handleProcessExcel = async () => {
     setLoading(true);
     setMessage("⏳ Обработка Excel запущена...");
-    resetAll()
+    resetAll();
+  
     try {
-      const res = await axios.post("http://51.250.8.183:8080/process-excel", { sity: city });
-      const data = res.data || {};
-      if (typeof data === "object") {
-        setMessage(data.status || "✅ Готово");
-        setProcessedCsv(Array.isArray(data.processed) ? data.processed : []);
-        setDuplicateCsv(Array.isArray(data.duplicates) ? data.duplicates : []);
-        setFailedCsv(Array.isArray(data.failed) ? data.failed.map(f => `${f.name}: ${f.error}`) : []);
+      const response = await axios.post(
+        "http://51.250.8.183:8080/process-excel",
+        { sity: city },
+        { responseType: "blob" }
+      );
+  
+      const blob = new Blob([response.data], { type: "text/plain" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `${city}_log.txt`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+  
+      // 📦 Расшифровываем base64 JSON из заголовка, если он есть
+      const base64 = response.headers["x-result-json"] || response.headers["X-Result-Json"];
+      if (base64) {
+        try {
+          const jsonText = atob(base64); // decode base64 safely
+          const data = JSON.parse(jsonText);
+          setMessage(data.status || "✅ Готово");
+          setProcessedCsv(data.processed || []);
+          setDuplicateCsv(data.duplicates || []);
+          setFailedCsv((data.failed || []).map(f => `${f.name}: ${f.error}`));
+        } catch (err) {
+          console.error("❌ Ошибка при декодировании или парсинге JSON:", err);
+          setMessage("⚠️ Ошибка при обработке ответа сервера");
+        }
       } else {
-        setMessage("⚠️ Некорректный ответ от сервера");
+        setMessage("⚠️ Ответ без данных. Лог загружен.");
       }
     } catch (err) {
       console.error(err);

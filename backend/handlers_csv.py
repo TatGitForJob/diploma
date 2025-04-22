@@ -1,7 +1,7 @@
-
-from flask import request, jsonify, send_file
+from flask import request, jsonify, send_file, make_response
 import os
 import time
+import base64
 import tempfile
 import zipfile
 from multiprocessing import Pool, cpu_count
@@ -10,11 +10,10 @@ from pathlib import Path
 from io import BytesIO
 import logging
 import yadisk
-
-
+import json
 
 y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
-SITY = ["Moscow",  "Novosibirsk"]
+SITY = ["Moscow", "Novosibirsk"]
 
 def register_routes_csv(app):
     @app.route("/upload-excel", methods=["POST"])
@@ -54,26 +53,35 @@ def register_routes_csv(app):
         logging.info(f"➡️ Запрос на обработку города: {sity}")
         try:
             start = time.time()
-            status, processed, duplicates, failed = process_city(sity)
+            status, processed, duplicates, failed, logs = process_city(sity)
             duration = time.time() - start
-            logging.info("Успешный запрос процессинга")
-            return jsonify({
+
+            log_file = tempfile.NamedTemporaryFile(delete=False, suffix=".txt", mode="w", encoding="utf-8")
+            log_file.write("\n".join(logs))
+            log_file.close()
+
+            result_json = {
                 "status": status,
                 "processed": processed,
                 "duplicates": duplicates,
                 "failed": failed,
                 "duration_sec": round(duration, 2)
-            })
+            }
+
+            encoded = base64.b64encode(json.dumps(result_json).encode("utf-8")).decode("ascii")
+
+            response = make_response(send_file(log_file.name, as_attachment=True, download_name=f"{sity}_log.txt"))
+            response.headers["X-Result-Json"] = encoded
+            return response
+
         except Exception as e:
             logging.error(f"Что-то пошло не так, error: {str(e)}")
             return jsonify({"status": "Что-то пошло не так", "error": str(e)}), 500
-
 
     @app.route("/csv-list", methods=["GET"])
     def list_csv_files():
         sity = request.args.get("sity")
         if not sity or sity not in SITY:
-            logging.warning("Запрос с неверным или отсутствующим городом: %s", sity)
             return jsonify({"error": "Неверный или отсутствующий город"}), 400
         folder_path = f"/{sity}_csv"
         try:
@@ -110,20 +118,14 @@ def register_routes_csv(app):
 
                         try:
                             y.download(remote_path, local_path)
-
-                            # Переместим файл в done-папку
                             done_folder = f"{remote_folder}/done"
                             if not y.exists(done_folder):
                                 y.mkdir(done_folder)
-
                             done_path = f"{done_folder}/{filename}"
                             if y.exists(done_path):
                                 y.remove(done_path, permanently=True)
                             y.move(remote_path, done_path)
-
-                            # Добавим в архив
                             zipf.write(local_path, arcname=filename)
-                            logging.info(f"✅ Добавлено в архив: {filename}")
                         except Exception as e:
                             logging.error(f"❌ Ошибка при скачивании {filename}: {e}")
 
@@ -135,6 +137,7 @@ def register_routes_csv(app):
             download_name=f"{sity}_csv_selected.zip"
         )
 
+# Вспомогательные функции
 
 def makedirs(sity):
     pdf_folder = f"{sity}_pdf"
@@ -146,7 +149,6 @@ def makedirs(sity):
         y.mkdir(csv_folder)
     os.makedirs(csv_folder, exist_ok=True)
     time.sleep(1)
-    return
 
 def check_duplicates(sity, name):
     pdf_folder = f"{sity}_pdf/{name}"
@@ -169,54 +171,47 @@ def check_duplicates(sity, name):
 def run_async_process_csv(sity, name):
     import csv_processor as csv
     try:
-        asyncio.run(csv.process_csv(sity, name))
-        return { "name": name, "status": "success" }
+        result = asyncio.run(csv.process_csv(sity, name))
+        return result
     except Exception as e:
-        return { "name": name, "status": "error", "error": str(e) }
+        return {"status": "error", "name": name, "logs": [f"❌ Ошибка {name}: {str(e)}"]}
 
-def process_city(sity: str) -> tuple[str, list[str], list[str], list[dict]]:
+def process_city(sity: str):
     if sity not in SITY:
-        return f"Город не из списка: {SITY}", [], [], []
+        return f"Город не из списка: {SITY}", [], [], [], []
 
-    folder_path = f"/{sity}_xlsx"
-    if not y.exists(folder_path):
-        return f"Папка '{folder_path}' не найдена на Яндекс.Диске.", [], [], []
-    done_folder = f"{folder_path}/done"
-    if not y.exists(done_folder):
-        y.mkdir(done_folder)
     folder_path = f"/{sity}_xlsx/verified"
     if not y.exists(folder_path):
-        return f"Папка '{folder_path}' не найдена на Яндекс.Диске.", [], [], []
+        return f"Папка '{folder_path}' не найдена на Яндекс.Диске.", [], [], [], []
 
     makedirs(sity)
     tasks = []
     duplicates = []
     processed = []
     failed_tasks = []
+    all_logs = []
 
     for item in y.listdir(folder_path):
         if item["type"] == "file" and item["name"].lower().endswith(".xlsx"):
             filename = item["name"]
             name = os.path.splitext(filename)[0]
-            logging.info(f"Обработка файла: /{sity}_xlsx/verified/{name}.xlsx")
-            duplicate = check_duplicates(sity, name)
-            if duplicate:
+            if check_duplicates(sity, name):
                 duplicates.append(name)
             tasks.append((sity, name))
 
     if not tasks:
-        return "Нет файлов для обработки.", [], [], []
+        return "Нет файлов для обработки.", [], [], [], []
 
-    results = []
     with Pool(cpu_count()) as pool:
         results = pool.starmap(run_async_process_csv, tasks)
 
     for res in results:
+        all_logs.extend(res.get("logs", []))
         if res["status"] == "success":
             processed.append(res["name"])
+        elif res["status"] == "skipped":
+            failed_tasks.append({"name": res["name"], "error": "пропущены орфографические ошибки"})
         else:
-            err = { "name": res["name"], "error": res["error"] }
-            logging.error("Ошибка при процессинге xlsx: %s", str(err))
-            failed_tasks.append(err)
+            failed_tasks.append({"name": res["name"], "error": res.get("error", "unknown")})
 
-    return "Файлы обработаны", processed, duplicates, failed_tasks
+    return "Файлы обработаны", processed, duplicates, failed_tasks, all_logs
