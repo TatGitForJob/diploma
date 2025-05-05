@@ -7,3 +7,5 @@ backend/__pycache__
 backend/Moscow*
 backend/Novosibirsk*
 backend/logs*
+ocr-model/*
+.venv
