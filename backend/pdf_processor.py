@@ -1,4 +1,4 @@
-import os, asyncio
+import os, asyncio, time
 from concurrent.futures import ThreadPoolExecutor
 from openpyxl import Workbook
 from PyPDF2 import PdfReader, PdfWriter
@@ -8,6 +8,9 @@ import excel_filler as excel
 y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
 
 def save_to_yandex_disk(file_path):
+    if y.exists(file_path):
+        y.remove(file_path, wait=True)
+    time.sleep(1)
     y.upload(file_path, file_path)
     y.publish(file_path)
 

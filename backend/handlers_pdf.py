@@ -2,6 +2,7 @@
 from flask import request, jsonify, send_file
 import os
 import time
+import shutil
 import tempfile
 import zipfile
 import asyncio
@@ -13,7 +14,7 @@ import logging
 import yadisk
 
 y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
-SITY = ["Moscow",  "Novosibirsk"]
+SITY = ["Moscow",  "Novosibirsk", "Kazan"]
 
 def register_routes_pdf(app):
     @app.route("/upload-pdf", methods=["POST"])
@@ -50,7 +51,7 @@ def register_routes_pdf(app):
     def pre_processing():
         data = request.get_json()
         sity = data.get("sity")
-        logging.info(f"➡️ Запрос на обработку города: {sity}")
+        logging.info(f"Запрос на предобработку города: {sity}")
         try:
             start = time.time()
             status, processed, duplicates, failed = process_city(sity)
@@ -138,13 +139,14 @@ def makedirs(sity):
 
 def check_duplicates(sity, name):
     pdf_folder = f"{sity}_pdf/{name}"
+    if os.path.exists(pdf_folder):
+        shutil.rmtree(pdf_folder)
     Path(pdf_folder).mkdir(parents=True, exist_ok=True)
     if not y.exists(pdf_folder):
         y.mkdir(pdf_folder)
     else:
         logging.info(f"Дубликат директории на диске: {pdf_folder}")
-        y.remove(pdf_folder, permanently=True)
-        time.sleep(1)
+        y.remove(pdf_folder,wait=True)
         y.mkdir(pdf_folder)
         xlsx_file = f"{sity}_xlsx/{name}.xlsx"
         if y.exists(xlsx_file):

@@ -2,7 +2,6 @@ import os, fitz, io, shutil
 import pandas as pd
 from openpyxl import load_workbook
 from PIL import Image
-import yadisk
 import cv2
 import numpy as np
 from tqdm import tqdm
@@ -202,7 +201,7 @@ def extract_blue_text(input_path: str):
     return Image.fromarray(cv2.cvtColor(result, cv2.COLOR_BGR2GRAY))
 
 
-# ==== Запуск ====
+
 shutil.rmtree(IMG_SAVE_ROOT, ignore_errors=True)
 os.makedirs(IMG_SAVE_ROOT, exist_ok=True)
 process_all_excels(LOCAL_XLSX_DIR, IMG_SAVE_ROOT, CSV_OUTPUT)

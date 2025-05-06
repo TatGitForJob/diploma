@@ -19,7 +19,8 @@ NUMS = {'1':'один','2':'два','3':'три','4':'четыре',
 
 CITY_CODEWORDS = {
     "Moscow": "тюлень",
-    "Novosibirsk": "новосибирск"
+    "Novosibirsk": "новосибирск",
+    "Kazan": "рыба"
 }
 
 y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
@@ -63,7 +64,7 @@ def merge_duplicate_pdfs(df, pdf_folder, log,site):
             src = os.path.join(pdf_folder, f"{fid}.pdf")
             merger.append(src)
             os.remove(src)
-            parts.extend(fid.split('_')[1].split('.')[0])
+            parts.append(fid.split('_')[1].split('.')[0])
         new_name = "_".join(parts)
         dest = os.path.join(pdf_folder, f"{new_name}.pdf")
         merger.write(dest)

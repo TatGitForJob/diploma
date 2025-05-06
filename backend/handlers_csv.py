@@ -1,5 +1,5 @@
 from flask import request, jsonify, send_file, make_response
-import os
+import os, shutil
 import time
 import base64
 import tempfile
@@ -13,7 +13,7 @@ import yadisk
 import json
 
 y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
-SITY = ["Moscow", "Novosibirsk"]
+SITY = ["Moscow", "Novosibirsk", "Kazan"]
 
 def register_routes_csv(app):
     @app.route("/upload-excel", methods=["POST"])
@@ -51,7 +51,7 @@ def register_routes_csv(app):
     def post_processing():
         data = request.get_json()
         sity = data.get("sity")
-        logging.info(f"➡️ Запрос на обработку города: {sity}")
+        logging.info(f"Запрос на постобработку города: {sity}")
         try:
             start = time.time()
             status, processed, duplicates, failed, logs = process_city(sity)
@@ -186,6 +186,8 @@ def makedirs(sity):
 
 def check_duplicates(sity, name):
     pdf_folder = f"{sity}_pdf/{name}"
+    if os.path.exists(pdf_folder):
+        shutil.rmtree(pdf_folder)
     Path(pdf_folder).mkdir(parents=True, exist_ok=True)
     if not y.exists(pdf_folder):
         y.mkdir(pdf_folder)
@@ -208,7 +210,7 @@ def run_async_process_csv(sity, name):
         result = asyncio.run(csv.process_csv(sity, name))
         return result
     except Exception as e:
-        return {"status": "error", "name": name, "logs": [f"❌ Ошибка {name}: {str(e)}"]}
+        return {"status": "error", "name": name, "logs": [f"Ошибка {name}: {str(e)}"]}
 
 def process_city(sity: str):
     if sity not in SITY:
