@@ -18,9 +18,14 @@ def prepare_excel(ws):
         ws.column_dimensions[get_column_letter(col)].width = COLUMN_WIDTHS[col-1]
     ws.row_dimensions[1].height = 50
 
-def fill_text_cells(ws, row, filename):
+def fill_text_cells(ws, row, filename,recognized):
     cell = ws.cell(row=row, column=1, value=os.path.splitext(filename)[0])
     cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    if recognized:
+        ws.cell(row=row, column=3).value = recognized.get("surnames", "")
+        ws.cell(row=row, column=4).value = recognized.get("names", "")
+        ws.cell(row=row, column=5).value = recognized.get("codewords", "")
 
     cell = ws.cell(row=row, column=9, value="Ссылка на PDF")
     cell.style = "Hyperlink"

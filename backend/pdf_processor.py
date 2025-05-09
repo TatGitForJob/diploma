@@ -4,6 +4,8 @@ from openpyxl import Workbook
 from PyPDF2 import PdfReader, PdfWriter
 import yadisk
 import excel_filler as excel
+from ocr import process_single_pdf
+
 
 y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
 
@@ -57,12 +59,13 @@ async def process_excel(pdfs_folder, excel_path):
             continue
         pdf_path = os.path.join(pdfs_folder, filename)
         tasks.append(async_save_to_yandex_disk(pdf_path, loop, executor))
-        excel.fill_text_cells(ws,row,filename)
-        excel.fill_image_cells(ws,row,pdf_path)
+        recognized = process_single_pdf(pdf_path)
+        excel.fill_text_cells(ws, row, filename,recognized)
+        excel.fill_image_cells(ws, row, pdf_path)
         row += 1
     await asyncio.gather(*tasks)
 
-    save_pdf_links(ws,pdfs_folder)
+    save_pdf_links(ws, pdfs_folder)
     wb.save(excel_path)
     save_to_yandex_disk(excel_path)
 

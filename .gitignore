@@ -2,11 +2,7 @@ venv
 pdfs
 xlsx
 out.xlsx
-backend/__pycache__
 .env
-backend/Moscow*
-backend/Novosibirsk*
-backend/Kazan*
-backend/logs*
 ocr-model/*
 .venv
+part*
