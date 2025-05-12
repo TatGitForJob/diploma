@@ -2,14 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import "./index.css";
 
-const validCities = {
-  Moscow: "mos123",
-  Novosibirsk: "nov456",
-};
-
 export default function CityApp() {
-  const [step, setStep] = useState(1);
   const [city, setCity] = useState("");
+  const [cityLabel, setCityLabel] = useState("");
+  const [step, setStep] = useState(1);
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -55,18 +51,30 @@ export default function CityApp() {
 
   useEffect(() => {
     const storedCity = localStorage.getItem("authCity");
-    if (storedCity && validCities[storedCity]) {
+    const storedLabel = localStorage.getItem("authLabel");
+    if (storedCity && storedLabel) {
       setCity(storedCity);
+      setCityLabel(storedLabel);
       setStep(2);
     }
   }, []);
 
-  const handleLogin = () => {
-    if (validCities[city] && validCities[city] === password) {
-      localStorage.setItem("authCity", city);
-      setStep(2);
-      setMessage("");
-    } else {
+  const handleLogin = async () => {
+    try {
+      const res = await axios.post("http://localhost:8080/login", {
+        city,
+        password,
+      });
+  
+      if (res.data.success) {
+        localStorage.setItem("authCity", city);
+        localStorage.setItem("authLabel", res.data.label); // сохранить перевод
+        setCity(city);
+        setCityLabel(res.data.label);
+        setStep(2);
+        setMessage("");
+      }
+    } catch (err) {
       setMessage("❌ Неверный город или пароль");
     }
   };
@@ -92,7 +100,7 @@ export default function CityApp() {
 
     try {
       setMessage("📤 Загрузка PDF-файлов...");
-      const res = await axios.post("http://51.250.8.183:8080/upload-pdf", formData);
+      const res = await axios.post("http://localhost:8080/upload-pdf", formData);
       const data = res.data;
       const uploaded = data.uploaded || [];
       const failed = data.failed || [];
@@ -120,7 +128,7 @@ export default function CityApp() {
   
     try {
       setMessage("📤 Загрузка Excel-файлов...");
-      const res = await axios.post("http://51.250.8.183:8080/upload-excel", formData);
+      const res = await axios.post("http://localhost:8080/upload-excel", formData);
       const data = res.data;
       const uploaded = data.uploaded || [];
       const failed = data.failed || [];
@@ -140,7 +148,7 @@ export default function CityApp() {
     setMessage("⏳ Обработка PDF запущена...");
     resetAll()
     try {
-      const res = await axios.post("http://51.250.8.183:8080/process-pdf", { sity: city });
+      const res = await axios.post("http://localhost:8080/process-pdf", { sity: city });
       const data = res.data || {};
       if (typeof data === "object") {
         setMessage(data.status || "✅ Готово");
@@ -163,7 +171,7 @@ export default function CityApp() {
   
     try {
       const response = await axios.post(
-        "http://51.250.8.183:8080/process-excel",
+        "http://localhost:8080/process-excel",
         { sity: city },
         { responseType: "blob" }
       );
@@ -204,7 +212,7 @@ export default function CityApp() {
     setMessage("⏳ Поиск Excel запущен...");
     resetAll()
     try {
-      const res = await axios.get("http://51.250.8.183:8080/xlsx-list", {
+      const res = await axios.get("http://localhost:8080/xlsx-list", {
         params: { sity: city },
       });
       setXlsxFiles(res.data.files || []);
@@ -217,7 +225,7 @@ export default function CityApp() {
     setMessage("⏳ Поиск обработанных работ запущен...");
     resetAll()
     try {
-      const res = await axios.get("http://51.250.8.183:8080/csv-list", {
+      const res = await axios.get("http://localhost:8080/csv-list", {
         params: { sity: city },
       });
       setCsvFiles(res.data.files || []);
@@ -245,7 +253,7 @@ export default function CityApp() {
     try {
       setMessage("📦 Запрос на скачивание отправлен...");
       const response = await axios.post(
-        "http://51.250.8.183:8080/download-xlsx",
+        "http://localhost:8080/download-xlsx",
         {
           sity: city,
           files: selectedXlsx,
@@ -275,7 +283,7 @@ export default function CityApp() {
     try {
       setMessage("📦 Запрос на скачивание отправлен...");
       const response = await axios.post(
-        "http://51.250.8.183:8080/download-csv",
+        "http://localhost:8080/download-csv",
         {
           sity: city,
           files: selectedCsv,
@@ -305,7 +313,7 @@ export default function CityApp() {
           <label>Город</label>
           <input
             type="text"
-            placeholder="Город (Moscow, Novosibirsk)"
+            placeholder="Город"
             value={city}
             onChange={(e) => setCity(e.target.value)}
           />
@@ -315,6 +323,9 @@ export default function CityApp() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleLogin();
+            }}
           />
 
           <button onClick={handleLogin} className="btn main-btn">
@@ -327,7 +338,7 @@ export default function CityApp() {
 
       {step === 2 && (
         <div className="dashboard">
-          <h2 className="subtitle">🏙️ Город: {city}</h2>
+          <h2 className="subtitle">🏙️ Город: {cityLabel}</h2>
 
           <div className="button-group">
             <button onClick={() => pdfInputRef.current.click()} className="btn">

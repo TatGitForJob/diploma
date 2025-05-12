@@ -1,8 +1,1 @@
-venv
-pdfs
-xlsx
-out.xlsx
-.env
-ocr-model/*
 .venv
-part*

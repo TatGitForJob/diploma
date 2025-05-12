@@ -5,12 +5,11 @@ import numpy as np
 import torch
 from transformers import ViTImageProcessor, ViTForImageClassification
 
-# === Конфигурация модели ===
 vit_model_path = "vit-base-letters_2"
-vit_model_name = "google/vit-base-patch16-224"
+vit_input_format = "google/vit-base-patch16-224"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-vit_feature_extractor = ViTImageProcessor.from_pretrained(vit_model_name)
+vit_feature_extractor = ViTImageProcessor.from_pretrained(vit_input_format)
 new_model = ViTForImageClassification.from_pretrained(vit_model_path).to(device)
 new_model.eval()
 
@@ -85,12 +84,11 @@ def prepare_cropped_image(pdf_path: str):
     y = find_first_content_row(img)
     return img.crop((0, y, img.width, img.height)), y
 
-# === Главная функция обработки и распознавания ===
 def process_single_pdf(pdf_path: str) -> dict:
     try:
         image = extract_blue_text(pdf_path)
     except Exception as e:
-        print(f"❌ Ошибка: {e}")
+        print(f"Ошибка: {e}")
         return {}
 
     words = {}
@@ -99,7 +97,7 @@ def process_single_pdf(pdf_path: str) -> dict:
         text = ''.join(predict_letter(img) for img in letters)
         words[category] = text
 
-    print(f"\n🟦 Распознанные данные ({os.path.basename(pdf_path)}):")
+    print(f"\nРаспознанные данные ({os.path.basename(pdf_path)}):")
     print("Фамилия:  ", words.get("surnames", "—"))
     print("Имя:      ", words.get("names", "—"))
     print("Кодовое:  ", words.get("codewords", "—"))

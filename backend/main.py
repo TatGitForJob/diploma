@@ -6,6 +6,7 @@ import logging
 from datetime import datetime
 from handlers_pdf import register_routes_pdf
 from handlers_csv import register_routes_csv
+from handlers_auth import register_routes_auth
 
 app = Flask("Diploma")
 CORS(app, expose_headers=["X-Result-Json"])
@@ -24,6 +25,7 @@ logging.basicConfig(
 )
 logging.getLogger("yadisk").setLevel(logging.WARNING)
 
+register_routes_auth(app)
 register_routes_pdf(app)
 register_routes_csv(app)
 

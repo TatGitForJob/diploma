@@ -86,7 +86,7 @@ vit-base-letters_2/
 project-root/
 ├── backend/
 │   ├── vit-base-letters_2/      # Папка с моделью
-│   ├── .env
+│   ├── auth.py
 │   ├── .gitignore
 │   ├── csv_processor.py
 │   ├── excel_filler.py
@@ -98,7 +98,7 @@ project-root/
 │   └── setup.sh
 ├── deploy/
 ├── frontend/
-├── train/
+├── train-final-model/
 ├── .gitignore
 └── Readme.md
 ```

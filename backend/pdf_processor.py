@@ -5,9 +5,9 @@ from PyPDF2 import PdfReader, PdfWriter
 import yadisk
 import excel_filler as excel
 from ocr import process_single_pdf
+from auth import YANDEX_TOKEN
 
-
-y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
+y = yadisk.YaDisk(token=YANDEX_TOKEN)
 
 def save_to_yandex_disk(file_path):
     if y.exists(file_path):

@@ -11,9 +11,10 @@ from io import BytesIO
 import logging
 import yadisk
 import json
+from auth import YANDEX_TOKEN, SITY
 
-y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
-SITY = ["Moscow", "Novosibirsk", "Kazan"]
+
+y = yadisk.YaDisk(token=YANDEX_TOKEN)
 
 def register_routes_csv(app):
     @app.route("/upload-excel", methods=["POST"])
@@ -137,19 +138,16 @@ def register_routes_csv(app):
                     try:
                         y.download(remote_pdf_folder, local_pdf_zip)
 
-                        # Распаковка в папку
                         with zipfile.ZipFile(local_pdf_zip, 'r') as zip_ref:
                             zip_ref.extractall(extracted_folder)
 
-                        # Удаляем оригинальный zip после распаковки
                         os.remove(local_pdf_zip)
 
-                        # Собираем без вложенности в новый zip
                         with zipfile.ZipFile(local_pdf_zip, 'w', zipfile.ZIP_DEFLATED) as temp_zip:
                             for root, dirs, files in os.walk(extracted_folder):
                                 for file in files:
                                     file_path = os.path.join(root, file)
-                                    arcname = f"{file}"  # без вложенности
+                                    arcname = f"{file}"
                                     temp_zip.write(file_path, arcname=arcname)
 
                         done_pdf_folder = f"{done_folder}/{name}"
@@ -158,7 +156,6 @@ def register_routes_csv(app):
                         y.move(remote_pdf_folder, done_pdf_folder)
                         y.move(remote_csv_path, done_csv_path)
 
-                        # Добавляем этот архив в общий архив на отправку
                         zipf.write(local_pdf_zip, arcname=pdf_zip_filename)
                         logging.info(f"✅ PDF-файлы добавлены как {pdf_zip_filename}")
 

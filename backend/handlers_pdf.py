@@ -12,9 +12,9 @@ from pathlib import Path
 from io import BytesIO
 import logging
 import yadisk
+from auth import YANDEX_TOKEN, SITY
 
-y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
-SITY = ["Moscow",  "Novosibirsk", "Kazan"]
+y = yadisk.YaDisk(token=YANDEX_TOKEN)
 
 def register_routes_pdf(app):
     @app.route("/upload-pdf", methods=["POST"])

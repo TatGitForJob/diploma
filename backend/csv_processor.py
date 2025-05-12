@@ -8,6 +8,8 @@ import shutil
 from PyPDF2 import PdfMerger
 from zipfile import ZipFile
 import yadisk
+from auth import YANDEX_TOKEN, CITY_CODEWORDS
+
 
 TRANSLIT = {'a':'а','b':'б','c':'ц','d':'д','e':'е','f':'ф','g':'г',
             'h':'х','i':'и','j':'й','k':'к','l':'л','m':'м','n':'н',
@@ -17,13 +19,7 @@ NUMS = {'1':'один','2':'два','3':'три','4':'четыре',
         '5':'пять','6':'шесть','7':'семь',
         '8':'восемь','9':'девять','0':'ноль'}
 
-CITY_CODEWORDS = {
-    "Moscow": "тюлень",
-    "Novosibirsk": "новосибирск",
-    "Kazan": "рыба"
-}
-
-y = yadisk.YaDisk(token=os.getenv("YANDEX_TOKEN"))
+y = yadisk.YaDisk(token=YANDEX_TOKEN)
 
 def download_and_extract_folder_as_zip(sity, site):
     remote_folder = f"{sity}_pdf/{site}"
