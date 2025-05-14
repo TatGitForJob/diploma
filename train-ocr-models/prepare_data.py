@@ -45,17 +45,20 @@ def process_single_file(xlsx_path, save_root, word_id_start=0, all_word=0, error
             "names": row[3].value,
             "codewords": row[4].value
         }
+
         if not all(is_valid_text_field(text_fields[key]) for key in text_fields):
             print(f"Пропущена строка {row[0].row} ({xlsx_path})")
             continue
-        all_word+=3
-        pdf_disk_path = row[0].value  # путь на Яндекс.Диске из первой колонки
+
+        all_word += 3
+
+        pdf_disk_path = row[0].value
         if not isinstance(pdf_disk_path, str) or not pdf_disk_path.strip():
             print(f"Нет пути к PDF в строке {row[0].row} ({xlsx_path})")
             continue
 
         try:
-            image = crop_image(f"Moscow_pdf/{pdf_disk_path.split("_")[0]}/{pdf_disk_path}.pdf")
+            image = extract_blue_text(f"Moscow_pdf/{pdf_disk_path.split('_')[0]}/{pdf_disk_path}.pdf")
         except Exception as e:
             print(f"Ошибка при обработке PDF {pdf_disk_path}: {e}")
             continue
@@ -64,21 +67,23 @@ def process_single_file(xlsx_path, save_root, word_id_start=0, all_word=0, error
             word_true = text.strip().lower()
             row_crop = CROPS[category](image)
 
-            word_dir = os.path.join(save_root, category)
+            first_letter = word_true[0]
+            word_dir = os.path.join(save_root, first_letter)
             os.makedirs(word_dir, exist_ok=True)
+
             word_file = f"{word_true}_{word_id}.jpg"
             word_path = os.path.join(word_dir, word_file)
             row_crop.save(word_path)
 
             csv_rows.append({
                 "id": word_id,
-                "category": category,
                 "new_path": word_path,
-                "word_true": word_true,
+                "word_true": word_true
             })
             word_id += 1
 
     return csv_rows, word_id, all_word, error_word
+
 
 
 def process_all_excels(xlsx_dir, save_root, output_csv):
@@ -103,12 +108,36 @@ def process_all_excels(xlsx_dir, save_root, output_csv):
     print(f"\nГотово. CSV: {output_csv}, изображения сохранены в: {save_root}")
     print(all_word," ",error_word)
 
-def crop_image(input_path: str) -> Image.Image:
+def extract_blue_text(input_path: str) -> Image.Image:
     image,cropeed_white = prepare_cropped_image(input_path)
     if  cropeed_white == 0:
         raise ValueError(f"Невозможно обрезать pdf по границе: {input_path}")
 
-    return image.crop((int(image.width * 0.025), int(image.height * 0.07), int(image.width * 0.67), int(image.height * 0.215)))    
+    cropped = image.crop((int(image.width * 0.025), int(image.height * 0.07), int(image.width * 0.67), int(image.height * 0.215)))    
+    image_np = np.array(cropped)
+
+    # Преобразуем в цветовое пространство HSV для лучшего выделения синего
+    hsv = cv2.cvtColor(image_np, cv2.COLOR_RGB2HSV)
+
+    # Диапазон синего цвета (можно адаптировать)
+    lower_blue = np.array([90, 50, 50])
+    upper_blue = np.array([130, 255, 255])
+
+    # Маска синего цвета
+    mask = cv2.inRange(hsv, lower_blue, upper_blue)
+
+    if cv2.countNonZero(mask) / mask.shape[0] * mask.shape[1] < 0.005:  # меньше 0.1% синих пикселей
+        raise ValueError(f"Синий текст не найден или слишком слабый: {input_path}")
+
+    # Немного увеличим области, чтобы лучше захватить переходящие пиксели
+    mask = cv2.dilate(mask, np.ones((2, 2), np.uint8), iterations=1)
+
+    # Создаем черный фон и белый текст
+    result = np.zeros_like(cropped)
+    result[mask > 0] = [255, 255, 255]  # Белый текст
+
+    # Переводим в оттенки серого
+    return Image.fromarray(cv2.cvtColor(result, cv2.COLOR_BGR2GRAY))
 
 def prepare_cropped_image(pdf_path: str):
     import fitz
