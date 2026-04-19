@@ -16,4 +16,4 @@ CITY_CODEWORDS = {
 }
 
 # токен Яндекс Диск API
-YANDEX_TOKEN=""
+YANDEX_TOKEN="y0__xDTq6CJCBjblgMgvajsjxcwwLC3iggWabmqc1iFdPQqV2Ib9Sc2H2Ev-g"
