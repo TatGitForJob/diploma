@@ -45,35 +45,25 @@ def save_pdf_links(ws,pdf_files_path):
 def natural_sort_key(filename):
     return int(filename.split('_')[1].split('.')[0])
 
-
 async def process_excel(pdfs_folder, excel_path):
     loop = asyncio.get_event_loop()
     executor = ThreadPoolExecutor()
-    
+    tasks = []
+
     wb = Workbook()
     ws = wb.active
     excel.prepare_excel(ws)
-
-    pdf_files = sorted(
-        [f for f in os.listdir(pdfs_folder) if f.lower().endswith(".pdf")],
-        key=natural_sort_key
-    )
-
-    async def process_file(filename):
-        pdf_path = os.path.join(pdfs_folder, filename)
-        recognized = await loop.run_in_executor(executor, process_single_pdf, pdf_path)
-        await async_save_to_yandex_disk(pdf_path, loop, executor)
-        return filename, pdf_path, recognized
-
-    # Параллельная обработка всех файлов
-    results = await asyncio.gather(*(process_file(f) for f in pdf_files))
-
-    # Последовательная запись в Excel
     row = 2
-    for filename, pdf_path, recognized in results:
-        excel.fill_text_cells(ws, row, filename, recognized)
+    for filename in sorted(os.listdir(pdfs_folder), key=natural_sort_key):
+        if not filename.lower().endswith(".pdf"):
+            continue
+        pdf_path = os.path.join(pdfs_folder, filename)
+        tasks.append(async_save_to_yandex_disk(pdf_path, loop, executor))
+        recognized = process_single_pdf(pdf_path)
+        excel.fill_text_cells(ws, row, filename,recognized)
         excel.fill_image_cells(ws, row, pdf_path)
         row += 1
+    await asyncio.gather(*tasks)
 
     save_pdf_links(ws, pdfs_folder)
     wb.save(excel_path)

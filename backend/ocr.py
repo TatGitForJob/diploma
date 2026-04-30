@@ -6,19 +6,20 @@ import torch
 from transformers import ViTImageProcessor, ViTForImageClassification
 
 vit_model_path = "vit-base-letters_2"
+vit_input_format = "google/vit-base-patch16-224"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-vit_feature_extractor = ViTImageProcessor.from_pretrained(vit_model_path)
+vit_feature_extractor = ViTImageProcessor.from_pretrained(vit_input_format)
 new_model = ViTForImageClassification.from_pretrained(vit_model_path).to(device)
 new_model.eval()
 
-def predict_letters(images: list[Image.Image]) -> list[str]:
-    pixel_values = vit_feature_extractor([img.convert("RGB") for img in images], return_tensors="pt").to(device)
+def predict_letter(img: Image.Image) -> str:
+    inputs = vit_feature_extractor(img.convert("RGB"), return_tensors="pt").to(device)
     with torch.no_grad():
-        outputs = new_model(**pixel_values)
-    preds = outputs.logits.argmax(-1).tolist()
+        outputs = new_model(**inputs)
+    pred_id = outputs.logits.argmax(-1).item()
     id2label = {int(k): v for k, v in new_model.config.id2label.items()}
-    return [id2label.get(idx, '?') for idx in preds]
+    return id2label.get(pred_id, '?')
 
 CROPS = {
     "surnames": lambda img: img.crop((0, 0, img.width, img.height // 3)),
@@ -93,7 +94,7 @@ def process_single_pdf(pdf_path: str) -> dict:
     words = {}
     for category, crop_fn in CROPS.items():
         letters = split_word_image_into_letters(crop_fn(image))
-        text = ''.join(predict_letters(letters))
+        text = ''.join(predict_letter(img) for img in letters)
         words[category] = text
 
     print(f"\nРаспознанные данные ({os.path.basename(pdf_path)}):")
